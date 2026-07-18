@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import AsciiBackdrop from "./ascii/AsciiBackdrop.jsx";
-import { fetchProject } from "../api.js";
+import { fetchProject, fetchProjects } from "../api.js";
 import { VOTING } from "../lib/flags.js";
 import { coverFor } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
@@ -17,8 +17,10 @@ import {
 // for the ai-generated write-up that gets produced later.
 export default function ProjectPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [error, setError] = useState(null);
+  const [ids, setIds] = useState([]);
 
   useEffect(() => {
     let alive = true;
@@ -31,6 +33,31 @@ export default function ProjectPage() {
       alive = false;
     };
   }, [id]);
+
+  // the wall's ordering, so ←/→ walks the projects in the same order as the grid
+  useEffect(() => {
+    let alive = true;
+    fetchProjects()
+      .then((list) => alive && setIds(list.map((p) => p.id)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const idx = ids.indexOf(Number(id));
+  const prevId = idx > 0 ? ids[idx - 1] : null;
+  const nextId = idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null;
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.closest?.("input, textarea, select")) return;
+      if (e.key === "ArrowLeft" && prevId != null) navigate(`/p/${prevId}`);
+      if (e.key === "ArrowRight" && nextId != null) navigate(`/p/${nextId}`);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [prevId, nextId, navigate]);
 
   return (
     <div className="relative min-h-full">
@@ -45,6 +72,10 @@ export default function ProjectPage() {
             ← the wall
           </Link>
           <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1">
+              <NavArrow id={prevId} dir="prev" />
+              <NavArrow id={nextId} dir="next" />
+            </span>
             {VOTING && (
             <Link
               to="/vote"
@@ -238,6 +269,28 @@ function LinkChip({ href, label, icon, small }) {
       {icon}
       {label} ↗
     </a>
+  );
+}
+
+function NavArrow({ id, dir }) {
+  const glyph = dir === "prev" ? "←" : "→";
+  const title = dir === "prev" ? "previous project (←)" : "next project (→)";
+  if (id == null) {
+    return (
+      <span className="border border-line/40 px-2.5 py-1 text-[11px] text-ink-soft/40 select-none">
+        {glyph}
+      </span>
+    );
+  }
+  return (
+    <Link
+      to={`/p/${id}`}
+      title={title}
+      aria-label={title}
+      className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"
+    >
+      {glyph}
+    </Link>
   );
 }
 

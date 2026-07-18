@@ -11,7 +11,7 @@ export default function Header({ count }) {
         <img
           src={catGif}
           alt="le chat"
-          className="h-9 w-auto mix-blend-multiply"
+          className="h-14 w-auto mix-blend-multiply sm:h-16"
         />
       </div>
 
