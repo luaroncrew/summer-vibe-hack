@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AsciiBackdrop from "./ascii/AsciiBackdrop.jsx";
-import { fetchProject, fetchProjects } from "../api.js";
-import { VOTING } from "../lib/flags.js";
+import { fetchProject, fetchProjects, lookupCode, castVote } from "../api.js";
 import { coverFor } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
 import {
@@ -22,6 +21,7 @@ export default function ProjectPage() {
   const [error, setError] = useState(null);
   const [ids, setIds] = useState([]);
   const [lightbox, setLightbox] = useState(null); // photo index, or null
+  const [voting, setVoting] = useState(false); // vote modal open
 
   useEffect(() => {
     let alive = true;
@@ -52,14 +52,14 @@ export default function ProjectPage() {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (lightbox != null) return; // the lightbox owns the keys while open
+      if (lightbox != null || voting) return; // overlays own the keys while open
       if (e.target.closest?.("input, textarea, select")) return;
       if (e.key === "ArrowLeft" && prevId != null) navigate(`/p/${prevId}`);
       if (e.key === "ArrowRight" && nextId != null) navigate(`/p/${nextId}`);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [prevId, nextId, navigate, lightbox]);
+  }, [prevId, nextId, navigate, lightbox, voting]);
 
   // close the lightbox when switching projects
   useEffect(() => setLightbox(null), [id]);
@@ -77,18 +77,18 @@ export default function ProjectPage() {
             ← the wall
           </Link>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVoting(true)}
+              disabled={!project}
+              className="border border-flame-orange bg-flame-orange px-3 py-1 text-[11px] font-semibold text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              vote
+            </button>
             <span className="flex items-center gap-1">
               <NavArrow id={prevId} dir="prev" />
               <NavArrow id={nextId} dir="next" />
             </span>
-            {VOTING && (
-            <Link
-              to="/vote"
-              className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"
-            >
-              vote
-            </Link>
-            )}
             <Link
               to="/edit"
               className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"
@@ -115,6 +115,164 @@ export default function ProjectPage() {
           </Panel>
         ) : (
           <Loaded project={project} lightbox={lightbox} setLightbox={setLightbox} />
+        )}
+      </div>
+
+      {voting && project && (
+        <VoteModal project={project} onClose={() => setVoting(false)} />
+      )}
+    </div>
+  );
+}
+
+/* --- voting --------------------------------------------------------------- */
+// Vote straight from the showcase: type the team code, get one final
+// confirmation (a vote can't be changed), then it's cast. One code = one vote.
+function VoteModal({ project, onClose }) {
+  const [step, setStep] = useState("code"); // code | confirm | done
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null); // { warn?: true, text }
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const check = async (e) => {
+    e.preventDefault();
+    setMsg(null);
+    setBusy(true);
+    try {
+      const { submission, votedFor } = await lookupCode(code);
+      if (!submission) {
+        setMsg({ text: "this code has no project on the wall — you can only vote if your team submitted" });
+      } else if (submission.id === project.id) {
+        setMsg({ text: "you can't vote for your own team" });
+      } else if (votedFor != null) {
+        setMsg({ warn: true, text: "your team has already used its vote — one vote per team, and it can't be changed" });
+      } else {
+        setStep("confirm");
+      }
+    } catch (e2) {
+      setMsg({ text: e2.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirm = async () => {
+    setMsg(null);
+    setBusy(true);
+    try {
+      await castVote(code, project.id);
+      setStep("done");
+    } catch (e2) {
+      setMsg({ warn: /already/.test(e2.message), text: e2.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm border border-line bg-ink-2 p-6"
+      >
+        {step === "code" && (
+          <form onSubmit={check}>
+            <p className="text-[15px] font-semibold text-cream">
+              vote for {project.name}
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
+              enter your team code. every team has one vote — and it can't be
+              changed once cast.
+            </p>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoFocus
+              placeholder="123456"
+              className="mt-4 w-full border border-line bg-ink-3/60 px-3 py-2 text-[13px] tracking-[0.4em] text-cream placeholder:text-ink-soft/60 outline-none transition-colors focus:border-flame-orange"
+            />
+            {msg && (
+              <p className={`mt-3 text-[12px] ${msg.warn ? "text-sand" : "text-flame-coral"}`}>
+                {msg.text}
+              </p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="submit"
+                disabled={code.length !== 6 || busy}
+                className="border border-flame-orange bg-flame-orange px-4 py-2 text-[12px] font-semibold text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {busy ? "checking…" : "continue"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="border border-line px-4 py-2 text-[12px] text-cream transition-colors hover:border-flame-orange"
+              >
+                cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === "confirm" && (
+          <div>
+            <p className="text-[15px] font-semibold text-cream">
+              confirm your vote
+            </p>
+            <p className="mt-2 text-[12px] leading-relaxed text-sand">
+              ⚠ you're about to vote for <b className="text-cream">{project.name}</b>.
+              this is your team's only vote and it can't be changed afterwards.
+            </p>
+            {msg && (
+              <p className={`mt-3 text-[12px] ${msg.warn ? "text-sand" : "text-flame-coral"}`}>
+                {msg.text}
+              </p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={confirm}
+                disabled={busy}
+                className="border border-flame-orange bg-flame-orange px-4 py-2 text-[12px] font-semibold text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {busy ? "voting…" : "cast the vote"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="border border-line px-4 py-2 text-[12px] text-cream transition-colors hover:border-flame-orange"
+              >
+                cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div>
+            <p className="text-[15px] font-semibold text-cream">vote counted 🎉</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
+              your team voted for {project.name}. results get announced later.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-4 border border-line px-4 py-2 text-[12px] text-cream transition-colors hover:border-flame-orange"
+            >
+              close
+            </button>
+          </div>
         )}
       </div>
     </div>

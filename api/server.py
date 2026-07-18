@@ -38,9 +38,8 @@ MAX_PHOTO_BYTES = 8 * 1024 * 1024
 PHOTO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 CODE_RE = re.compile(r"^\d{6}$")
 
-# voting is built but not open yet — flip with SUMMER_VIBE_VOTING=1 (and rebuild
-# the wall with VITE_VOTING=1) when it's time
-VOTING_ENABLED = os.environ.get("SUMMER_VIBE_VOTING", "0") == "1"
+# the old dedicated voting page stays dark (VITE_VOTING) — voting itself runs
+# through the showcase vote button and is always on
 
 app = FastAPI(title="Summer Vibe Hack API")
 app.add_middleware(
@@ -143,9 +142,7 @@ def public(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
             "SELECT * FROM members WHERE submission_id = ? ORDER BY id", (row["id"],)
         )
     ]
-    d["votes"] = conn.execute(
-        "SELECT COUNT(*) FROM votes WHERE submission_id = ?", (row["id"],)
-    ).fetchone()[0]
+    # vote counts stay out of the public payload — results get announced later
     d["photos"] = [
         f"/uploads/{p['filename']}"
         for p in conn.execute(
@@ -520,12 +517,19 @@ def set_cover(body: PhotoBody):
 
 @app.post("/vote")
 def vote(body: Vote):
-    """Cast the team's single vote. One code = one vote; re-voting replaces it,
-    and a team can't vote for its own project."""
-    if not VOTING_ENABLED:
-        raise HTTPException(status_code=403, detail="voting is not open yet")
+    """Cast the team's single vote. One code = one vote, final (no re-vote).
+    Only teams with a project on the wall can vote, and never for themselves.
+    Counts stay private until the results page."""
     with db() as conn:
         require_code(conn, body.code)
+        voter = conn.execute(
+            "SELECT id FROM submissions WHERE code = ?", (body.code,)
+        ).fetchone()
+        if voter is None:
+            raise HTTPException(
+                status_code=403,
+                detail="this code has no project — only teams on the wall can vote",
+            )
         target = conn.execute(
             "SELECT id, code FROM submissions WHERE id = ?", (body.submission_id,)
         ).fetchone()
@@ -533,16 +537,15 @@ def vote(body: Vote):
             raise HTTPException(status_code=404, detail="no such project")
         if target["code"] == body.code:
             raise HTTPException(status_code=400, detail="you can't vote for your own team")
+        if conn.execute(
+            "SELECT 1 FROM votes WHERE voter_code = ?", (body.code,)
+        ).fetchone():
+            raise HTTPException(status_code=409, detail="your team has already used its vote")
         conn.execute(
-            "INSERT INTO votes (voter_code, submission_id, created_at) VALUES (?, ?, ?)"
-            " ON CONFLICT(voter_code) DO UPDATE SET"
-            " submission_id = excluded.submission_id, created_at = excluded.created_at",
+            "INSERT INTO votes (voter_code, submission_id, created_at) VALUES (?, ?, ?)",
             (body.code, body.submission_id, now()),
         )
-        votes = conn.execute(
-            "SELECT COUNT(*) FROM votes WHERE submission_id = ?", (body.submission_id,)
-        ).fetchone()[0]
-        return {"ok": True, "submission_id": body.submission_id, "votes": votes}
+        return {"ok": True, "submission_id": body.submission_id}
 
 
 @app.post("/share-link")
