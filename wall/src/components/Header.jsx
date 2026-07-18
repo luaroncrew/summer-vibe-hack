@@ -1,15 +1,18 @@
 import { Link } from "react-router-dom";
 import { VOTING } from "../lib/flags.js";
+import catGif from "../assets/cat.gif";
 
 // Thin header over the grid, in Mistral cream: the skill command on the left,
 // the wordmark in the middle, and the live count + vote/edit nav on the right.
 export default function Header({ count }) {
   return (
     <header className="relative z-10 flex items-center gap-4 bg-[#fff8e0] px-5 py-3 sm:px-7">
-      <div className="flex flex-1 items-baseline">
-        <code className="text-[12px] font-semibold text-[#fa520f] sm:text-[13px]">
-          /summer-vibe
-        </code>
+      <div className="flex flex-1 items-center">
+        <img
+          src={catGif}
+          alt="le chat"
+          className="h-9 w-auto mix-blend-multiply"
+        />
       </div>
 
       <span className="text-[15px] font-bold tracking-tight text-[#1f1f1f] sm:text-[17px]">

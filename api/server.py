@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import qrcode
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -31,6 +31,11 @@ DB_PATH = Path(__file__).parent / "submissions.db"
 SKILL_PATH = Path(__file__).resolve().parent.parent / "skill" / "summer-vibe" / "SKILL.md"
 INDEX_PATH = Path(__file__).resolve().parent.parent / "index.html"
 WALL_DIST = Path(__file__).resolve().parent.parent / "wall" / "dist"
+UPLOADS_DIR = Path(__file__).parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+MAX_PHOTOS = 3
+MAX_PHOTO_BYTES = 8 * 1024 * 1024
+PHOTO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 CODE_RE = re.compile(r"^\d{6}$")
 
 # voting is built but not open yet — flip with SUMMER_VIBE_VOTING=1 (and rebuild
@@ -104,6 +109,14 @@ with db() as conn:
             created_at TEXT NOT NULL
         )
     """)
+    # up to MAX_PHOTOS uploaded photos per project, stored on disk in uploads/
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS submission_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+            filename TEXT NOT NULL
+        )
+    """)
     # migrate older databases that predate these columns
     ensure_columns(conn, "submissions", {
         "emojis": "TEXT", "image_url": "TEXT", "video_url": "TEXT",
@@ -133,6 +146,13 @@ def public(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     d["votes"] = conn.execute(
         "SELECT COUNT(*) FROM votes WHERE submission_id = ?", (row["id"],)
     ).fetchone()[0]
+    d["photos"] = [
+        f"/uploads/{p['filename']}"
+        for p in conn.execute(
+            "SELECT filename FROM submission_photos WHERE submission_id = ? ORDER BY id",
+            (row["id"],),
+        )
+    ]
     return d
 
 
@@ -386,6 +406,57 @@ def lookup(body: Lookup, request: Request):
         }
 
 
+@app.post("/submissions/photos")
+async def upload_photos(
+    code: str = Form(...), photos: list[UploadFile] = File(...)
+):
+    """Upload up to MAX_PHOTOS photos for the team's project (replaces the
+    previous set). Files land in uploads/ and are linked in submission_photos."""
+    if not 1 <= len(photos) <= MAX_PHOTOS:
+        raise HTTPException(status_code=400, detail=f"send 1 to {MAX_PHOTOS} photos")
+    with db() as conn:
+        require_code(conn, code)
+        row = conn.execute(
+            "SELECT id FROM submissions WHERE code = ?", (code,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="no submission for this code yet")
+        sub_id = row["id"]
+
+        saved = []
+        for photo in photos:
+            ext = Path(photo.filename or "").suffix.lower()
+            if ext not in PHOTO_EXTS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"unsupported file type {ext or '(none)'} — use {', '.join(sorted(PHOTO_EXTS))}",
+                )
+            data = await photo.read()
+            if len(data) > MAX_PHOTO_BYTES:
+                raise HTTPException(status_code=400, detail="each photo must be under 8MB")
+            name = f"{sub_id}-{secrets.token_hex(6)}{ext}"
+            (UPLOADS_DIR / name).write_bytes(data)
+            saved.append(name)
+
+        # replace the previous set: rows + files on disk
+        old = [
+            r["filename"]
+            for r in conn.execute(
+                "SELECT filename FROM submission_photos WHERE submission_id = ?", (sub_id,)
+            )
+        ]
+        conn.execute("DELETE FROM submission_photos WHERE submission_id = ?", (sub_id,))
+        for name in saved:
+            conn.execute(
+                "INSERT INTO submission_photos (submission_id, filename) VALUES (?, ?)",
+                (sub_id, name),
+            )
+        for name in old:
+            (UPLOADS_DIR / name).unlink(missing_ok=True)
+
+        return {"ok": True, "photos": [f"/uploads/{n}" for n in saved]}
+
+
 @app.post("/vote")
 def vote(body: Vote):
     """Cast the team's single vote. One code = one vote; re-voting replaces it,
@@ -516,3 +587,5 @@ def home(request: Request):
 # so its empty VITE_API_BASE resolves /submissions here; hash routing needs no rewrites
 if WALL_DIST.is_dir():
     app.mount("/wall", StaticFiles(directory=WALL_DIST, html=True), name="wall")
+
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")

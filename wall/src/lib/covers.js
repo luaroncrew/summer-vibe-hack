@@ -22,6 +22,7 @@ function hash(str) {
 }
 
 export function coverFor(project) {
+  if (project?.photos?.length) return project.photos[0];
   const own = safeUrl(project?.imageUrl);
   if (own) return own;
   const seed = project?.id ?? hash(project?.name ?? "wall");
@@ -31,5 +32,5 @@ export function coverFor(project) {
 // Is this project showing a real (submitter-supplied) cover, vs a placeholder?
 // The tile keeps the mistral monochrome veil only over placeholders.
 export function hasOwnCover(project) {
-  return !!safeUrl(project?.imageUrl);
+  return !!(project?.photos?.length || safeUrl(project?.imageUrl));
 }

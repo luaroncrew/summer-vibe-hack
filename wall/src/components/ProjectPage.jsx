@@ -118,7 +118,6 @@ function Loaded({ project }) {
           }}
         />
         <div className="relative p-6 pt-24 sm:p-8 sm:pt-32">
-          <p className="text-[11px] text-sand">summer vibe hack · build</p>
           <h1 className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[26px] font-bold leading-tight tracking-tight text-cream sm:text-[34px]">
             {project.name}
             {emojis && <span className="text-[22px] sm:text-[28px]">{emojis}</span>}
@@ -145,6 +144,23 @@ function Loaded({ project }) {
         </p>
       </Section>
 
+      {/* uploaded photos */}
+      {project.photos?.length > 0 && (
+        <Section label="photos">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {project.photos.map((src, i) => (
+              <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={src}
+                  alt={`${project.name} photo ${i + 1}`}
+                  className="aspect-[4/3] w-full border border-line object-cover"
+                />
+              </a>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* the team + their socials */}
       {members.length > 0 && (
         <Section label={members.length > 1 ? "team" : "builder"}>
@@ -160,6 +176,7 @@ function Loaded({ project }) {
                     <LinkChip
                       href={twitterUrl(m.twitter)}
                       label={twitterLabel(m.twitter)}
+                      icon={<XLogo />}
                       small
                     />
                   )}
@@ -167,6 +184,7 @@ function Loaded({ project }) {
                     <LinkChip
                       href={linkedinUrl(m.linkedin)}
                       label="linkedin"
+                      icon={<LinkedInLogo />}
                       small
                     />
                   )}
@@ -207,18 +225,35 @@ function Section({ label, children }) {
   );
 }
 
-function LinkChip({ href, label, small }) {
+function LinkChip({ href, label, icon, small }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`border border-line text-cream no-underline transition-colors hover:border-flame-orange hover:text-flame-orange ${
+      className={`inline-flex items-center gap-1.5 border border-line text-cream no-underline transition-colors hover:border-flame-orange hover:text-flame-orange ${
         small ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-[12px]"
       }`}
     >
+      {icon}
       {label} ↗
     </a>
+  );
+}
+
+function XLogo() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-[11px] w-[11px] shrink-0">
+      <path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.23l-4.88-6.38L6.5 22H3.34l7.24-8.28L2.4 2h6.39l4.41 5.83L18.9 2Zm-1.09 18.14h1.72L7.86 3.77H6.01l11.8 16.37Z" />
+    </svg>
+  );
+}
+
+function LinkedInLogo() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-[11px] w-[11px] shrink-0">
+      <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.55V9h3.57v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0Z" />
+    </svg>
   );
 }
 

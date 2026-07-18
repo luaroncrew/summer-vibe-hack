@@ -24,6 +24,7 @@ function normalize(s) {
     githubUrl: s.github_url ?? null,
     deckUrl: s.deck_url ?? null,
     members: Array.isArray(s.members) ? s.members : [],
+    photos: Array.isArray(s.photos) ? s.photos.map((p) => url(p)) : [],
     votes: s.votes ?? 0,
     createdAt: s.created_at ?? null,
   };
