@@ -38,8 +38,9 @@ MAX_PHOTO_BYTES = 8 * 1024 * 1024
 PHOTO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 CODE_RE = re.compile(r"^\d{6}$")
 
-# the old dedicated voting page stays dark (VITE_VOTING) — voting itself runs
-# through the showcase vote button and is always on
+# voting is hidden for now — flip with SUMMER_VIBE_VOTING=1 (and rebuild the
+# wall with VITE_VOTING=1) when it's time
+VOTING_ENABLED = os.environ.get("SUMMER_VIBE_VOTING", "0") == "1"
 
 app = FastAPI(title="Summer Vibe Hack API")
 app.add_middleware(
@@ -520,6 +521,8 @@ def vote(body: Vote):
     """Cast the team's single vote. One code = one vote; voting again moves it.
     Only teams with a project on the wall can vote, and never for themselves.
     Counts stay private until the results page."""
+    if not VOTING_ENABLED:
+        raise HTTPException(status_code=403, detail="voting is not open yet")
     with db() as conn:
         require_code(conn, body.code)
         voter = conn.execute(

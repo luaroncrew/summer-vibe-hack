@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AsciiBackdrop from "./ascii/AsciiBackdrop.jsx";
 import { fetchProject, fetchProjects, lookupCode, castVote } from "../api.js";
+import { VOTING } from "../lib/flags.js";
 import { coverFor } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
 import {
@@ -77,14 +78,16 @@ export default function ProjectPage() {
             ← the wall
           </Link>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setVoting(true)}
-              disabled={!project}
-              className="border border-flame-orange bg-flame-orange px-3 py-1 text-[11px] font-semibold text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
-              vote for this team
-            </button>
+            {VOTING && (
+              <button
+                type="button"
+                onClick={() => setVoting(true)}
+                disabled={!project}
+                className="border border-flame-orange bg-flame-orange px-3 py-1 text-[11px] font-semibold text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                vote for this team
+              </button>
+            )}
             <span className="flex items-center gap-1">
               <NavArrow id={prevId} dir="prev" />
               <NavArrow id={nextId} dir="next" />
@@ -118,7 +121,7 @@ export default function ProjectPage() {
         )}
       </div>
 
-      {voting && project && (
+      {VOTING && voting && project && (
         <VoteModal project={project} onClose={() => setVoting(false)} />
       )}
     </div>
