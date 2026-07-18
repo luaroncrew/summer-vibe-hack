@@ -5,6 +5,10 @@ const BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
 
 const url = (path) => `${BASE}${path}`;
 
+// The skill install page (the FastAPI root serves it). Empty tiles link here so
+// the next builder can get on the wall.
+export const installUrl = `${BASE}/`;
+
 // The wall reads from the submissions api, whose model is: project_name,
 // description, demo_url, members[{name, twitter, linkedin}], created_at.
 // Normalize it into one shape the ui uses, tolerant of the older field names.

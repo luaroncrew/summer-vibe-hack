@@ -1,14 +1,12 @@
 import { Link } from "react-router-dom";
-import { coverFor, hasOwnCover } from "../lib/covers.js";
+import { coverFor } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
 
-// One project, one rectangle. The cover image fills the tile with the heading
-// over it. Placeholder covers are monochrome (mistral) off-cursor and take
-// their real colors on hover; a builder's own image always shows in color.
-// Tiles share a single border (no gaps).
+// One project, one rectangle. The cover image fills the tile in full color with
+// the heading and its description over it, both always visible (no hover
+// needed). Tiles share a single border (no gaps).
 export default function ProjectTile({ project, index }) {
   const cover = coverFor(project);
-  const ownCover = hasOwnCover(project);
   const line = blurb(project.description);
   const emojis = (project.emojis ?? "").trim();
 
@@ -19,7 +17,7 @@ export default function ProjectTile({ project, index }) {
       className="group relative isolate block min-h-0 min-w-0 overflow-hidden border-b border-r border-line no-underline tile-in"
       style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
     >
-      {/* cover image */}
+      {/* cover image — full color, always */}
       <img
         src={cover}
         alt=""
@@ -27,27 +25,7 @@ export default function ProjectTile({ project, index }) {
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
       />
 
-      {/* mistral monochrome veil — placeholder covers only; fades on hover */}
-      {!ownCover && (
-        <>
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0"
-            style={{
-              background:
-                "linear-gradient(150deg, #ffc61a, #ff7a00 52%, #d81e05)",
-              mixBlendMode: "color",
-            }}
-          />
-          {/* a touch of desaturation under the veil so the off state is fully mono */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-ink/25 opacity-100 transition-opacity duration-300 group-hover:opacity-0"
-          />
-        </>
-      )}
-
-      {/* legibility scrim for the heading */}
+      {/* legibility scrim for the text */}
       <div
         aria-hidden="true"
         className="absolute inset-x-0 bottom-0 h-2/3"
@@ -57,7 +35,7 @@ export default function ProjectTile({ project, index }) {
         }}
       />
 
-      {/* heading */}
+      {/* heading + description, always visible */}
       <div className="absolute inset-x-0 bottom-0 p-4">
         {emojis && (
           <div className="mb-1 text-[15px] leading-none drop-shadow-sm">{emojis}</div>
@@ -66,7 +44,7 @@ export default function ProjectTile({ project, index }) {
           {project.name}
         </h2>
         {line && (
-          <p className="mt-1 max-h-0 overflow-hidden text-[11px] leading-snug text-sand opacity-0 transition-all duration-300 group-hover:max-h-12 group-hover:opacity-100">
+          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-sand drop-shadow-sm">
             {line}
           </p>
         )}

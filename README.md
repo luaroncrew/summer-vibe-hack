@@ -75,5 +75,23 @@ team laptop                                   server (ascii.dev box)
         └────────────────────────────────────┴────────────────────────────┘
                                                    │ GET /submissions
                                                    ▼
-                                             showcase + leaderboard (next)
+                                             the wall — live grid (wall/)
 ```
+
+## The wall
+
+The public display lives in [`wall/`](wall/) — a Vite + React + Tailwind SPA
+that reads `GET /submissions` and renders one tile per project over a dark ascii
+seascape. Project tiles show a color cover with the name and description; open
+slots show ascii art and link to the install page. See [`wall/README.md`](wall/README.md).
+
+Build it to static files (`npm run build`) and serve `dist/` next to the API on
+the same origin, so `VITE_API_BASE` can stay empty and the wall fetches
+`/submissions` relatively.
+
+## The landing page
+
+`GET /` serves [`index.html`](index.html) — the single-screen install page
+(IBM Plex Mono, one flame accent, ascii swimming rings). The API injects the
+server URL and the live project count into it per request, so nothing hardcodes
+a host.

@@ -50,11 +50,17 @@ share an origin.
 
 | path | what |
 |---|---|
-| `src/App.jsx` | the 3x3 wall grid, paging, live count |
+| `src/App.jsx` | the wall grid, live count, loading/error states |
+| `src/components/Wall.jsx` | the 3-across grid; pads the last row with open slots |
+| `src/components/ProjectTile.jsx` | a project: full-color cover + name + description, always visible |
+| `src/components/EmptyTile.jsx` | an open slot: ascii art + link to the install page |
 | `src/components/ProjectPage.jsx` | one project, template + slot for the ai write-up |
-| `src/components/ascii/` | swimming ring, wave, beach umbrella |
-| `src/lib/motifs.js` | per-project ascii cover art (placeholder until real images) |
+| `src/components/ascii/` | swimming ring, wave, beach umbrella (ambient backdrop) |
+| `src/lib/covers.js` | picks a color cover — the builder's own image, else a placeholder svg |
+| `src/lib/motifs.js` | ascii art for the open slots |
 
-each tile's picture is a deterministic ascii motif for now. the project page
-leaves a "generated overview" slot for the model-written summary that gets
-filled in later.
+project tiles show a color cover (the builder's linked image, otherwise a
+deterministic placeholder svg) with the name and description always visible.
+open slots show ascii art and link straight to the install page. the project
+page leaves a "generated overview" slot for the model-written summary that
+gets filled in later.
