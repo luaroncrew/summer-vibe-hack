@@ -33,15 +33,31 @@ export default function ProjectPage() {
 
   return (
     <div className="relative min-h-full">
-      <AsciiBackdrop />
+      <AsciiBackdrop rings={14} ringOpacity={0.5} />
 
       <div className="relative z-10 mx-auto flex min-h-full max-w-3xl flex-col px-4 py-5 sm:px-6">
-        <Link
-          to="/"
-          className="mb-6 inline-block text-[12px] text-ink-soft no-underline transition-colors hover:text-flame-orange"
-        >
-          ← the wall
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link
+            to="/"
+            className="inline-block text-[12px] text-ink-soft no-underline transition-colors hover:text-flame-orange"
+          >
+            ← the wall
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/vote"
+              className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"
+            >
+              vote
+            </Link>
+            <Link
+              to="/edit"
+              className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"
+            >
+              edit this page
+            </Link>
+          </div>
+        </div>
 
         {error ? (
           <Panel>

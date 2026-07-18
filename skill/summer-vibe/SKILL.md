@@ -69,9 +69,15 @@ curl -sS -X POST "__API_URL__/submissions" \
 ```
 
 Handle the response:
-- **201** → they're on the wall! Output the link to the wall so they can see themselves:
-  **__API_URL__/wall/** — and wish them good luck with their project. Mention they can
-  rerun `/summer-vibe` anytime with the same code to update their entry. Stop.
+- **201** → they're on the wall! The JSON has `code` and `url`. Read both back to the
+  team clearly and tell them to save them, e.g.:
+
+  > you're on the wall 🌊
+  > **your team code: `995168`** — keep it, it's how you edit your entry later
+  > **your page: `http://.../wall/#/p/7`**
+
+  Then mention they can rerun `/summer-vibe` anytime with that same code to update the
+  entry, and wish them good luck. Stop.
 - **401** → the code is wrong. re-ask the code and retry once.
 - **409** → this code already submitted. switch to the update pipeline below.
 - anything else → show the error, offer to retry once.
@@ -87,7 +93,8 @@ help them change it:
    curl -sS -X POST "__API_URL__/lookup" -H 'Content-Type: application/json' -d '{"code":"123456"}'
    ```
 
-   That returns `{valid, submission}`. Show a short recap of the current entry.
+   That returns `{valid, submission, url}`. Show a short recap of the current entry,
+   and remind them of their code and page `url` so they can save both.
 
 2. Ask **what they want to change.** Any field from the interview is fair game —
    name, description, members, or any of the links (github/demo/video/deck). This is
@@ -104,8 +111,8 @@ help them change it:
      -d '{"code":"123456","deck_url":"https://...","video_url":"https://..."}'
    ```
 
-   Response: **200** updated (confirm what changed and show the wall link
-   **__API_URL__/wall/**), **401** bad code, **404** no entry for this code yet
-   (fall back to POST).
+   Response: **200** updated — the JSON has `url`; confirm what changed and read back
+   their page `url` (and their code). **401** bad code, **404** no entry for this code
+   yet (fall back to POST).
 
 Do not do anything else: no file edits, and no commands beyond the curl calls above.

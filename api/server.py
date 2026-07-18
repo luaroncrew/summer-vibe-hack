@@ -6,9 +6,16 @@ Auth: pre-generated 6-digit team codes (see generate_codes.py). One code = one
       team = one submission; the same code authorizes later edits.
 """
 
+import base64
+import hashlib
+import hmac
 import io
+import json
+import os
 import re
+import secrets
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,6 +90,16 @@ with db() as conn:
             github TEXT
         )
     """)
+    conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+    # one vote per team: the voter's code is the primary key, so a team can hold
+    # exactly one vote at a time (re-voting replaces it).
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS votes (
+            voter_code TEXT PRIMARY KEY REFERENCES codes(code),
+            submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+            created_at TEXT NOT NULL
+        )
+    """)
     # migrate older databases that predate these columns
     ensure_columns(conn, "submissions", {
         "emojis": "TEXT", "image_url": "TEXT", "video_url": "TEXT",
@@ -109,6 +126,9 @@ def public(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
             "SELECT * FROM members WHERE submission_id = ? ORDER BY id", (row["id"],)
         )
     ]
+    d["votes"] = conn.execute(
+        "SELECT COUNT(*) FROM votes WHERE submission_id = ?", (row["id"],)
+    ).fetchone()[0]
     return d
 
 
@@ -117,6 +137,87 @@ def require_code(conn: sqlite3.Connection, code: str) -> None:
         raise HTTPException(status_code=401, detail="code must be 6 digits")
     if conn.execute("SELECT 1 FROM codes WHERE code = ?", (code,)).fetchone() is None:
         raise HTTPException(status_code=401, detail="unknown code")
+
+
+# --- signed edit links -----------------------------------------------------
+# A team can mint a signed link so a teammate edits the page without the code.
+# The token is an HMAC of {submission id, expiry}; nothing secret is in the url.
+SHARE_TTL_DAYS = 30
+
+
+def signing_secret(conn: sqlite3.Connection) -> bytes:
+    """Server secret for signing links. Env wins; otherwise generate + persist."""
+    env = os.environ.get("SUMMER_VIBE_SECRET")
+    if env:
+        return env.encode()
+    row = conn.execute(
+        "SELECT value FROM settings WHERE key = 'signing_secret'"
+    ).fetchone()
+    if row:
+        return row["value"].encode()
+    val = secrets.token_hex(32)
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('signing_secret', ?)", (val,)
+    )
+    return val.encode()
+
+
+def _b64u(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).decode().rstrip("=")
+
+
+def _b64u_dec(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def sign_token(conn: sqlite3.Connection, sub_id: int) -> str:
+    payload = _b64u(
+        json.dumps(
+            {"sid": sub_id, "exp": int(time.time()) + SHARE_TTL_DAYS * 86400}
+        ).encode()
+    )
+    sig = _b64u(hmac.new(signing_secret(conn), payload.encode(), hashlib.sha256).digest())
+    return f"{payload}.{sig}"
+
+
+def verify_token(conn: sqlite3.Connection, token: str) -> int | None:
+    """Return the submission id a token authorizes, or None if bad/expired."""
+    try:
+        payload, sig = token.split(".", 1)
+        expected = _b64u(
+            hmac.new(signing_secret(conn), payload.encode(), hashlib.sha256).digest()
+        )
+        if not hmac.compare_digest(sig, expected):
+            return None
+        data = json.loads(_b64u_dec(payload))
+        if int(data.get("exp", 0)) < time.time():
+            return None
+        return int(data["sid"])
+    except Exception:
+        return None
+
+
+def authorize_edit(
+    conn: sqlite3.Connection, code: str | None, token: str | None
+) -> sqlite3.Row:
+    """Resolve the submission an editor may change — by signed link or by code."""
+    if token:
+        sub_id = verify_token(conn, token)
+        if sub_id is None:
+            raise HTTPException(status_code=401, detail="this edit link is invalid or expired")
+        row = conn.execute(
+            "SELECT * FROM submissions WHERE id = ?", (sub_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="this project no longer exists")
+        return row
+    require_code(conn, code)
+    row = conn.execute(
+        "SELECT * FROM submissions WHERE code = ?", (code,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="no submission for this code yet")
+    return row
 
 
 def replace_members(conn: sqlite3.Connection, submission_id: int, members: list) -> None:
@@ -154,7 +255,8 @@ class Submission(BaseModel):
 
 
 class SubmissionUpdate(BaseModel):
-    code: str
+    code: str | None = None  # a code OR a signed token authorizes the edit
+    token: str | None = None
     project_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1, max_length=5000)
     emojis: str | None = Field(default=None, max_length=100)
@@ -170,13 +272,27 @@ class Lookup(BaseModel):
     code: str
 
 
+class Vote(BaseModel):
+    code: str
+    submission_id: int
+
+
+class ShareRequest(BaseModel):
+    code: str | None = None
+    token: str | None = None
+
+
+class TokenRequest(BaseModel):
+    token: str
+
+
 @app.get("/health")
 def health():
     return {"ok": True}
 
 
 @app.post("/submissions", status_code=201)
-def create_submission(sub: Submission):
+def create_submission(sub: Submission, request: Request):
     with db() as conn:
         require_code(conn, sub.code)
         exists = conn.execute(
@@ -199,18 +315,20 @@ def create_submission(sub: Submission):
             vals,
         )
         replace_members(conn, cur.lastrowid, sub.members)
-        return {"id": cur.lastrowid, "status": "saved"}
+        # hand the team their code and a direct link to their page, so they can
+        # save both: the code re-opens the entry for edits, the url shows it off.
+        return {
+            "id": cur.lastrowid,
+            "status": "saved",
+            "code": sub.code,
+            "url": page_url(request, cur.lastrowid),
+        }
 
 
 @app.put("/submissions")
-def update_submission(upd: SubmissionUpdate):
+def update_submission(upd: SubmissionUpdate, request: Request):
     with db() as conn:
-        require_code(conn, upd.code)
-        row = conn.execute(
-            "SELECT * FROM submissions WHERE code = ?", (upd.code,)
-        ).fetchone()
-        if row is None:
-            raise HTTPException(status_code=404, detail="no submission for this code yet")
+        row = authorize_edit(conn, upd.code, upd.token)
         fields = {}
         if upd.project_name is not None:
             fields["project_name"] = upd.project_name
@@ -237,18 +355,84 @@ def update_submission(upd: SubmissionUpdate):
         row = conn.execute(
             "SELECT * FROM submissions WHERE id = ?", (row["id"],)
         ).fetchone()
-        return {"status": "updated", "submission": public(conn, row)}
+        return {
+            "status": "updated",
+            "submission": public(conn, row),
+            "url": page_url(request, row["id"]),
+        }
 
 
 @app.post("/lookup")
-def lookup(body: Lookup):
+def lookup(body: Lookup, request: Request):
     """For the leaderboard edit flow: is this code valid, and what did it submit?"""
     with db() as conn:
         require_code(conn, body.code)
         row = conn.execute(
             "SELECT * FROM submissions WHERE code = ?", (body.code,)
         ).fetchone()
-        return {"valid": True, "submission": public(conn, row) if row else None}
+        vote = conn.execute(
+            "SELECT submission_id FROM votes WHERE voter_code = ?", (body.code,)
+        ).fetchone()
+        return {
+            "valid": True,
+            "submission": public(conn, row) if row else None,
+            "url": page_url(request, row["id"]) if row else None,
+            "voted_for": vote["submission_id"] if vote else None,
+        }
+
+
+@app.post("/vote")
+def vote(body: Vote):
+    """Cast the team's single vote. One code = one vote; re-voting replaces it,
+    and a team can't vote for its own project."""
+    with db() as conn:
+        require_code(conn, body.code)
+        target = conn.execute(
+            "SELECT id, code FROM submissions WHERE id = ?", (body.submission_id,)
+        ).fetchone()
+        if target is None:
+            raise HTTPException(status_code=404, detail="no such project")
+        if target["code"] == body.code:
+            raise HTTPException(status_code=400, detail="you can't vote for your own team")
+        conn.execute(
+            "INSERT INTO votes (voter_code, submission_id, created_at) VALUES (?, ?, ?)"
+            " ON CONFLICT(voter_code) DO UPDATE SET"
+            " submission_id = excluded.submission_id, created_at = excluded.created_at",
+            (body.code, body.submission_id, now()),
+        )
+        votes = conn.execute(
+            "SELECT COUNT(*) FROM votes WHERE submission_id = ?", (body.submission_id,)
+        ).fetchone()[0]
+        return {"ok": True, "submission_id": body.submission_id, "votes": votes}
+
+
+@app.post("/share-link")
+def share_link(body: ShareRequest, request: Request):
+    """Mint a signed link a teammate can use to edit the page without the code."""
+    with db() as conn:
+        row = authorize_edit(conn, body.code, body.token)
+        token = sign_token(conn, row["id"])
+        return {
+            "token": token,
+            "submission_id": row["id"],
+            "url": f"{base_url(request)}/wall/#/edit?token={token}",
+            "expires_in_days": SHARE_TTL_DAYS,
+        }
+
+
+@app.post("/resolve-link")
+def resolve_link(body: TokenRequest):
+    """Load the submission an edit link points at, so the editor can prefill."""
+    with db() as conn:
+        sub_id = verify_token(conn, body.token)
+        if sub_id is None:
+            raise HTTPException(status_code=401, detail="this edit link is invalid or expired")
+        row = conn.execute(
+            "SELECT * FROM submissions WHERE id = ?", (sub_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="this project no longer exists")
+        return {"submission": public(conn, row)}
 
 
 @app.get("/submissions")
@@ -276,6 +460,11 @@ def get_submission(sub_id: int):
 
 def base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
+
+
+def page_url(request: Request, sub_id: int) -> str:
+    """Public link to a project's page on the wall (HashRouter deep link)."""
+    return f"{base_url(request)}/wall/#/p/{sub_id}"
 
 
 @app.get("/skill.md", response_class=PlainTextResponse)
