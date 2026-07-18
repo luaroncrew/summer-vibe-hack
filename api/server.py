@@ -17,11 +17,13 @@ import qrcode
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(__file__).parent / "submissions.db"
 SKILL_PATH = Path(__file__).resolve().parent.parent / "skill" / "summer-vibe" / "SKILL.md"
 INDEX_PATH = Path(__file__).resolve().parent.parent / "index.html"
+WALL_DIST = Path(__file__).resolve().parent.parent / "wall" / "dist"
 CODE_RE = re.compile(r"^\d{6}$")
 
 app = FastAPI(title="Summer Vibe Hack API")
@@ -312,3 +314,9 @@ def home(request: Request):
         n = conn.execute("SELECT COUNT(*) FROM submissions").fetchone()[0]
     html = INDEX_PATH.read_text(encoding="utf-8")
     return html.replace("__BASE_URL__", base_url(request)).replace("__COUNT__", str(n))
+
+
+# the wall SPA (wall/dist, built with `npm run build`) — same origin as the api,
+# so its empty VITE_API_BASE resolves /submissions here; hash routing needs no rewrites
+if WALL_DIST.is_dir():
+    app.mount("/wall", StaticFiles(directory=WALL_DIST, html=True), name="wall")
