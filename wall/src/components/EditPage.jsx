@@ -305,16 +305,16 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
           hint="uploaded from your device — the first one becomes the tile cover; a new upload replaces the current set"
         >
           {values.photos?.length > 0 && photoFiles.length === 0 && (
-            <div className="mb-2 flex gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               {values.photos.map((src, i) => (
-                <img key={i} src={src} alt={`photo ${i + 1}`} className="h-14 w-20 border border-line object-cover" />
+                <img key={i} src={src} alt={`photo ${i + 1}`} className="h-28 w-40 border border-line object-cover sm:h-32 sm:w-48" />
               ))}
             </div>
           )}
           {previews.length > 0 && (
-            <div className="mb-2 flex gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               {previews.map((src, i) => (
-                <img key={i} src={src} alt={`selected photo ${i + 1}`} className="h-14 w-20 border border-flame-orange object-cover" />
+                <img key={i} src={src} alt={`selected photo ${i + 1}`} className="h-28 w-40 border border-flame-orange object-cover sm:h-32 sm:w-48" />
               ))}
             </div>
           )}
