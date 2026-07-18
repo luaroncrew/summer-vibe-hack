@@ -21,6 +21,7 @@ export default function ProjectPage() {
   const [project, setProject] = useState(null);
   const [error, setError] = useState(null);
   const [ids, setIds] = useState([]);
+  const [lightbox, setLightbox] = useState(null); // photo index, or null
 
   useEffect(() => {
     let alive = true;
@@ -51,13 +52,17 @@ export default function ProjectPage() {
 
   useEffect(() => {
     const onKey = (e) => {
+      if (lightbox != null) return; // the lightbox owns the keys while open
       if (e.target.closest?.("input, textarea, select")) return;
       if (e.key === "ArrowLeft" && prevId != null) navigate(`/p/${prevId}`);
       if (e.key === "ArrowRight" && nextId != null) navigate(`/p/${nextId}`);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [prevId, nextId, navigate]);
+  }, [prevId, nextId, navigate, lightbox]);
+
+  // close the lightbox when switching projects
+  useEffect(() => setLightbox(null), [id]);
 
   return (
     <div className="relative min-h-full">
@@ -179,16 +184,31 @@ function Loaded({ project }) {
         <Section label="photos">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {project.photos.map((src, i) => (
-              <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+              <button
+                key={i}
+                type="button"
+                onClick={() => setLightbox(i)}
+                className="cursor-zoom-in border-0 bg-transparent p-0"
+                aria-label={`view photo ${i + 1} full screen`}
+              >
                 <img
                   src={src}
                   alt={`${project.name} photo ${i + 1}`}
-                  className="aspect-[4/3] w-full border border-line object-cover"
+                  className="aspect-[4/3] w-full border border-line object-cover transition-opacity hover:opacity-90"
                 />
-              </a>
+              </button>
             ))}
           </div>
         </Section>
+      )}
+
+      {lightbox != null && (
+        <Lightbox
+          photos={project.photos}
+          index={lightbox}
+          setIndex={setLightbox}
+          onClose={() => setLightbox(null)}
+        />
       )}
 
       {/* the team + their socials */}
@@ -268,6 +288,68 @@ function LinkChip({ href, label, icon, small }) {
       {icon}
       {label} ↗
     </a>
+  );
+}
+
+function Lightbox({ photos, index, setIndex, onClose }) {
+  const prev = index > 0 ? index - 1 : null;
+  const next = index < photos.length - 1 ? index + 1 : null;
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && prev != null) setIndex(prev);
+      if (e.key === "ArrowRight" && next != null) setIndex(next);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [prev, next, setIndex, onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
+      onClick={onClose}
+    >
+      <img
+        src={photos[index]}
+        alt={`photo ${index + 1} of ${photos.length}`}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-full max-w-full object-contain"
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="close"
+        className="absolute right-4 top-4 border border-line bg-black/50 px-3 py-1.5 text-[14px] text-cream transition-colors hover:border-flame-orange hover:text-flame-orange"
+      >
+        ✕
+      </button>
+      {prev != null && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIndex(prev); }}
+          aria-label="previous photo"
+          className="absolute left-4 top-1/2 -translate-y-1/2 border border-line bg-black/50 px-3 py-2 text-[16px] text-cream transition-colors hover:border-flame-orange hover:text-flame-orange"
+        >
+          ←
+        </button>
+      )}
+      {next != null && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIndex(next); }}
+          aria-label="next photo"
+          className="absolute right-4 top-1/2 -translate-y-1/2 border border-line bg-black/50 px-3 py-2 text-[16px] text-cream transition-colors hover:border-flame-orange hover:text-flame-orange"
+        >
+          →
+        </button>
+      )}
+      {photos.length > 1 && (
+        <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12px] text-sand">
+          {index + 1} / {photos.length}
+        </span>
+      )}
+    </div>
   );
 }
 
