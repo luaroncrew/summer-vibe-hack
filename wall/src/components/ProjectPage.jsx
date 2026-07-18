@@ -124,7 +124,6 @@ export default function ProjectPage() {
 function Loaded({ project, lightbox, setLightbox }) {
   const cover = coverFor(project);
   const tagline = blurb(project.description, 120);
-  const joined = fmtDate(project.createdAt);
   const members = project.members ?? [];
   const emojis = (project.emojis ?? "").trim();
   // every url here is submitter-controlled -> safeUrl allows http/https only
@@ -249,7 +248,6 @@ function Loaded({ project, lightbox, setLightbox }) {
       )}
 
       {/* slot for the model-written overview, filled in later */}
-      <p className="pb-6 text-[11px] text-ink-soft">on the wall since {joined}</p>
     </article>
   );
 }
