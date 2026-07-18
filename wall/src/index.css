@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* --- design tokens: dark summer, mistral flame --------------------------- */
+@theme {
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* flame accents, straight from the landing page */
+  --color-flame-yellow: #ffc61a;
+  --color-flame-orange: #ff7a00;
+  --color-flame-coral: #fa4b10;
+  --color-flame-red: #d81e05;
+
+  /* warm dark surfaces — near-black with heat in it, never pure #000 */
+  --color-ink: #16100c;
+  --color-ink-2: #1d150e;
+  --color-ink-3: #251a11;
+  --color-line: #3a291c;
+  --color-line-2: #52392616;
+
+  /* warm neutrals for text on dark */
+  --color-cream: #fdf5e9;
+  --color-sand: #d8c4b1;
+  --color-ink-soft: #a58c78;
+
+  /* kill every radius: r0 everywhere */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+}
+
+@layer base {
+  * {
+    border-radius: 0 !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-mono);
+    color: var(--color-cream);
+    background:
+      radial-gradient(120% 80% at 82% -12%, #2a1a0e 0%, transparent 52%),
+      radial-gradient(100% 90% at 10% 108%, #24140a 0%, transparent 55%),
+      var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-flame-orange);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-flame-coral);
+    outline-offset: 2px;
+  }
+}
+
+/* flame gradient text, reused in the wordmark and headings */
+@utility flame-text {
+  background: linear-gradient(
+    100deg,
+    var(--color-flame-yellow),
+    var(--color-flame-orange) 42%,
+    var(--color-flame-coral) 72%,
+    var(--color-flame-red)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* thin flame hairline used under the header */
+@utility flame-rule {
+  background: linear-gradient(
+    90deg,
+    var(--color-flame-yellow),
+    var(--color-flame-orange) 40%,
+    var(--color-flame-red) 90%,
+    transparent
+  );
+}
+
+/* the ascii backdrop layers */
+.ascii-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  pointer-events: none;
+  white-space: pre;
+  font-family: var(--font-mono);
+  line-height: 1;
+  will-change: transform, contents;
+}
+
+/* faint animated scanline vibe on tiles */
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tile-in {
+  animation: tile-in 0.4s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-in {
+    animation: none;
+  }
+}
