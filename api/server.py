@@ -268,28 +268,29 @@ class Member(BaseModel):
 class Submission(BaseModel):
     code: str
     project_name: str = Field(min_length=1, max_length=200)
-    description: str = Field(min_length=1, max_length=5000)
+    # minimal sign-up is just code + name; everything else fills in later
+    description: str = Field(default="", max_length=5000)
     emojis: str | None = Field(default=None, max_length=100)
     image_url: str | None = Field(default=None, max_length=1000)
     demo_url: str | None = Field(default=None, max_length=1000)
     video_url: str | None = Field(default=None, max_length=1000)
     github_url: str | None = Field(default=None, max_length=1000)
     deck_url: str | None = Field(default=None, max_length=1000)
-    members: list[Member] = Field(min_length=1, max_length=20)
+    members: list[Member] = Field(default_factory=list, max_length=20)
 
 
 class SubmissionUpdate(BaseModel):
     code: str | None = None  # a code OR a signed token authorizes the edit
     token: str | None = None
     project_name: str | None = Field(default=None, min_length=1, max_length=200)
-    description: str | None = Field(default=None, min_length=1, max_length=5000)
+    description: str | None = Field(default=None, max_length=5000)
     emojis: str | None = Field(default=None, max_length=100)
     image_url: str | None = Field(default=None, max_length=1000)
     demo_url: str | None = Field(default=None, max_length=1000)
     video_url: str | None = Field(default=None, max_length=1000)
     github_url: str | None = Field(default=None, max_length=1000)
     deck_url: str | None = Field(default=None, max_length=1000)
-    members: list[Member] | None = Field(default=None, min_length=1, max_length=20)
+    members: list[Member] | None = Field(default=None, max_length=20)
 
 
 class Lookup(BaseModel):

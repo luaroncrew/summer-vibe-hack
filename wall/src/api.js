@@ -131,6 +131,17 @@ export async function createShareLink(auth) {
 }
 
 // Save the form. auth is { code } or { token }; existing chooses PUT vs POST.
+// Minimal sign-up: just the team name + code. The rest gets filled in on the
+// edit form afterwards.
+export async function createProject(code, name) {
+  return postJSON("/submissions", {
+    code,
+    project_name: name,
+    description: "",
+    members: [],
+  });
+}
+
 export async function saveSubmission({ auth, values, existing }) {
   const payload = { ...auth, ...toApi(values) };
   if (existing) {

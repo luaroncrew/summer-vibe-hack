@@ -5,6 +5,7 @@ import {
   lookupCode,
   resolveLink,
   saveSubmission,
+  createProject,
   uploadPhotos,
 } from "../api.js";
 
@@ -143,6 +144,7 @@ export default function EditPage() {
 /* --- code gate ----------------------------------------------------------- */
 
 function CodeGate({ onValid, error }) {
+  const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(error ?? null);
@@ -152,8 +154,18 @@ function CodeGate({ onValid, error }) {
     setErr(null);
     setBusy(true);
     try {
-      const { submission } = await lookupCode(code.trim());
-      onValid({ code: code.trim(), submission });
+      const trimmed = code.trim();
+      let { submission } = await lookupCode(trimmed);
+      if (!submission) {
+        // first time in: register with just the name, then edit everything
+        if (!name.trim()) {
+          setErr("enter your team name to sign up");
+          return;
+        }
+        await createProject(trimmed, name.trim());
+        ({ submission } = await lookupCode(trimmed));
+      }
+      onValid({ code: trimmed, submission });
     } catch (e2) {
       setErr(e2.message);
     } finally {
@@ -164,21 +176,38 @@ function CodeGate({ onValid, error }) {
   return (
     <form onSubmit={submit}>
       <h1 className="text-[24px] font-bold tracking-tight text-cream sm:text-[28px]">
-        edit your project
+        sign up
       </h1>
       <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-        enter your team's 6-digit code to open your page. don't have one? run{" "}
-        <code className="text-flame-orange">/summer-vibe</code> in vibe to get on
-        the wall first.
+        your team name and the 6-digit code the organizers handed out — that's
+        it, everything else you can fill in after. already signed up? just enter
+        the code. don't have a code? contact{" "}
+        <a
+          href="mailto:cyrill.makarov@gmail.com?subject=project%20submission"
+          className="text-flame-orange no-underline hover:underline"
+        >
+          cyrill.makarov@gmail.com
+        </a>{" "}
+        with "project submission" in the subject.
       </p>
 
       <div className="mt-6">
+        <label className={LABEL}>team name</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+          placeholder="tide pool"
+          className={INPUT}
+        />
+      </div>
+
+      <div className="mt-4">
         <label className={LABEL}>team code</label>
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric"
-          autoFocus
           placeholder="123456"
           className={`${INPUT} tracking-[0.4em]`}
         />
@@ -251,11 +280,7 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
   const removeMember = (i) =>
     setValues((v) => ({ ...v, members: v.members.filter((_, j) => j !== i) }));
 
-  const namedMembers = values.members.filter((m) => m.name.trim().length);
-  const valid =
-    values.name.trim().length &&
-    values.description.trim().length &&
-    namedMembers.length >= 1;
+  const valid = values.name.trim().length > 0;
 
   const save = async (e) => {
     e.preventDefault();
@@ -374,7 +399,7 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
         </button>
         {!valid && (
           <span className="text-[11px] text-ink-soft">
-            name, description, and one member are required
+            the project name is required
           </span>
         )}
       </div>
