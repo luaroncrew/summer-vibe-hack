@@ -366,7 +366,8 @@ def update_submission(upd: SubmissionUpdate, request: Request):
         }
 
 
-@app.post("/lookup")
+@app.post("/submissions/lookup")
+@app.post("/lookup")  # legacy path — the on.ascii.dev gateway shadows /lookup, use /submissions/lookup
 def lookup(body: Lookup, request: Request):
     """For the leaderboard edit flow: is this code valid, and what did it submit?"""
     with db() as conn:

@@ -85,7 +85,8 @@ async function postJSON(path, body, method = "POST") {
 // Validate a code and, if it already has a project, hand back the submission
 // plus which project this team has voted for (null if it hasn't voted yet).
 export async function lookupCode(code) {
-  const data = await postJSON("/lookup", { code });
+  // NOT "/lookup": the on.ascii.dev gateway owns that path and shadows it
+  const data = await postJSON("/submissions/lookup", { code });
   return {
     valid: data.valid,
     submission: data.submission ? normalize(data.submission) : null,

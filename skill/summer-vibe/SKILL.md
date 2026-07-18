@@ -90,7 +90,7 @@ help them change it:
 1. Look up what they have so you can show it and only touch what changes:
 
    ```bash
-   curl -sS -X POST "__API_URL__/lookup" -H 'Content-Type: application/json' -d '{"code":"123456"}'
+   curl -sS -X POST "__API_URL__/submissions/lookup" -H 'Content-Type: application/json' -d '{"code":"123456"}'
    ```
 
    That returns `{valid, submission, url}`. Show a short recap of the current entry,
