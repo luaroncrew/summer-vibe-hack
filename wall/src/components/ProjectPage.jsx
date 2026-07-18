@@ -271,7 +271,7 @@ function LinkChip({ href, label, icon, small }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1.5 border border-line text-cream no-underline transition-colors hover:border-flame-orange hover:text-flame-orange ${
+      className={`inline-flex items-center gap-1.5 border border-line bg-ink-2 text-cream no-underline transition-colors hover:border-flame-orange hover:text-flame-orange ${
         small ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-[12px]"
       }`}
     >
