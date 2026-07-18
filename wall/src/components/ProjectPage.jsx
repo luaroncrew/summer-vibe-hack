@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AsciiBackdrop from "./ascii/AsciiBackdrop.jsx";
 import { fetchProject } from "../api.js";
+import { VOTING } from "../lib/flags.js";
 import { coverFor } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
 import {
@@ -44,12 +45,14 @@ export default function ProjectPage() {
             ← the wall
           </Link>
           <div className="flex items-center gap-2">
+            {VOTING && (
             <Link
               to="/vote"
               className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"
             >
               vote
             </Link>
+            )}
             <Link
               to="/edit"
               className="border border-line px-2.5 py-1 text-[11px] text-ink-soft no-underline transition-colors hover:border-flame-orange hover:text-flame-orange"

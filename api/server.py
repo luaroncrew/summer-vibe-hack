@@ -33,6 +33,10 @@ INDEX_PATH = Path(__file__).resolve().parent.parent / "index.html"
 WALL_DIST = Path(__file__).resolve().parent.parent / "wall" / "dist"
 CODE_RE = re.compile(r"^\d{6}$")
 
+# voting is built but not open yet — flip with SUMMER_VIBE_VOTING=1 (and rebuild
+# the wall with VITE_VOTING=1) when it's time
+VOTING_ENABLED = os.environ.get("SUMMER_VIBE_VOTING", "0") == "1"
+
 app = FastAPI(title="Summer Vibe Hack API")
 app.add_middleware(
     CORSMiddleware,
@@ -385,6 +389,8 @@ def lookup(body: Lookup, request: Request):
 def vote(body: Vote):
     """Cast the team's single vote. One code = one vote; re-voting replaces it,
     and a team can't vote for its own project."""
+    if not VOTING_ENABLED:
+        raise HTTPException(status_code=403, detail="voting is not open yet")
     with db() as conn:
         require_code(conn, body.code)
         target = conn.execute(

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { VOTING } from "../lib/flags.js";
 
 // Thin header over the grid, in Mistral cream: the skill command on the left,
 // the wordmark in the middle, and the live count + vote/edit nav on the right.
@@ -20,7 +21,7 @@ export default function Header({ count }) {
           <b className="font-semibold text-[#1f1f1f]">{count == null ? "…" : count}</b>
           on the wall
         </span>
-        <Link to="/vote" className={NAV}>vote</Link>
+        {VOTING && <Link to="/vote" className={NAV}>vote</Link>}
         <Link to="/edit" className={NAV}>edit</Link>
       </div>
     </header>

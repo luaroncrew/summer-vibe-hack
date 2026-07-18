@@ -5,6 +5,7 @@ import App from "./App.jsx";
 import ProjectPage from "./components/ProjectPage.jsx";
 import EditPage from "./components/EditPage.jsx";
 import VotePage from "./components/VotePage.jsx";
+import { VOTING } from "./lib/flags.js";
 import "./index.css";
 
 // HashRouter keeps deep links working from static hosting (ascii.dev) with no
@@ -16,7 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/" element={<App />} />
         <Route path="/p/:id" element={<ProjectPage />} />
         <Route path="/edit" element={<EditPage />} />
-        <Route path="/vote" element={<VotePage />} />
+        {VOTING && <Route path="/vote" element={<VotePage />} />}
       </Routes>
     </HashRouter>
   </React.StrictMode>
