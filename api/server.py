@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 DB_PATH = Path(__file__).parent / "submissions.db"
 SKILL_PATH = Path(__file__).resolve().parent.parent / "skill" / "summer-vibe" / "SKILL.md"
+INDEX_PATH = Path(__file__).resolve().parent.parent / "index.html"
 CODE_RE = re.compile(r"^\d{6}$")
 
 app = FastAPI(title="Summer Vibe Hack API")
@@ -246,7 +247,11 @@ def install_sh(request: Request):
 
 @app.get("/qr.png")
 def qr_png(request: Request):
-    img = qrcode.make(base_url(request))
+    # colors match the page: dark ink modules on the same field bg as the code boxes
+    qr = qrcode.QRCode(border=2, box_size=10)
+    qr.add_data(base_url(request))
+    qr.make(fit=True)
+    img = qr.make_image(fill_color=(43, 26, 18), back_color=(255, 250, 241))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return Response(content=buf.getvalue(), media_type="image/png")
@@ -254,27 +259,8 @@ def qr_png(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    base = base_url(request)
+    """Serve the install page (index.html), injecting the server URL and live count."""
     with db() as conn:
         n = conn.execute("SELECT COUNT(*) FROM submissions").fetchone()[0]
-    return f"""<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Summer Vibe Hack</title>
-<style>
-  body {{ font-family: ui-monospace, monospace; max-width: 640px; margin: 40px auto; padding: 0 16px; }}
-  pre {{ background: #111; color: #7CFC00; padding: 14px; border-radius: 8px; overflow-x: auto; }}
-  img {{ display: block; margin: 24px auto; width: 240px; height: 240px; }}
-</style></head>
-<body>
-<h1>☀️ Summer Vibe Hack</h1>
-<p>Put your project on the wall. Takes ~3 minutes, from your terminal.</p>
-<h2>1. Install the skill</h2>
-<pre>curl -fsSL {base}/install.sh | sh</pre>
-<h2>2. Run it</h2>
-<pre>vibe
-/summer-vibe</pre>
-<p>Have your team's 6-digit code ready — you'll need it to submit
-(and later to edit your entry on the leaderboard).</p>
-<img src="/qr.png" alt="QR code to this page">
-<p style="text-align:center">{n} project(s) on the wall</p>
-</body></html>"""
+    html = INDEX_PATH.read_text(encoding="utf-8")
+    return html.replace("__BASE_URL__", base_url(request)).replace("__COUNT__", str(n))
