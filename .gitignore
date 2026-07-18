@@ -1,3 +1,4 @@
 api/.venv/
 api/submissions.db
+api/codes.txt
 __pycache__/
