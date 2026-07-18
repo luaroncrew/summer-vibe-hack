@@ -95,23 +95,27 @@ async function postJSON(path, body, method = "POST") {
   return data;
 }
 
-// Upload up to 3 photos (replaces the project's current set). Auth mirrors
-// editing: {code} or a signed {token}.
+// Add photos to the project's set (appends, 3 total max — the server rejects
+// uploads past that). Auth mirrors editing: {code} or a signed {token}.
+// Returns the full updated set.
 export async function uploadPhotos(auth, files) {
   const fd = new FormData();
   if (auth?.code) fd.append("code", auth.code);
   if (auth?.token) fd.append("token", auth.token);
   files.forEach((f) => fd.append("photos", f));
   const res = await fetch(url("/submissions/photos"), { method: "POST", body: fd });
-  if (!res.ok) {
-    let detail = `photo upload failed (${res.status})`;
-    try {
-      const data = await res.json();
-      if (data.detail) detail = String(data.detail);
-    } catch { /* keep default */ }
-    throw new Error(detail);
-  }
-  return res.json();
+  let data = {};
+  try {
+    data = await res.json();
+  } catch { /* non-json error body */ }
+  if (!res.ok) throw new Error(data.detail || `photo upload failed (${res.status})`);
+  return { photos: (data.photos ?? []).map((p) => url(p)) };
+}
+
+// Remove one uploaded photo. Returns the remaining set.
+export async function deletePhoto(auth, photoUrl) {
+  const data = await postJSON("/submissions/photos/delete", { ...auth, photo: photoUrl });
+  return { photos: (data.photos ?? []).map((p) => url(p)) };
 }
 
 // Validate a code and, if it already has a project, hand back the submission

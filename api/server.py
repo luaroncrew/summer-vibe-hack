@@ -413,14 +413,28 @@ async def upload_photos(
     token: str | None = Form(None),
     photos: list[UploadFile] = File(...),
 ):
-    """Upload up to MAX_PHOTOS photos for the team's project (replaces the
-    previous set). Auth like editing: team code or signed share-link token.
-    Files land in uploads/ and are linked in submission_photos."""
+    """Add photos to the team's project (appends to the current set, up to
+    MAX_PHOTOS total — delete one to free a slot). Auth like editing: team
+    code or signed share-link token. Files land in uploads/ and are linked
+    in submission_photos."""
     if not 1 <= len(photos) <= MAX_PHOTOS:
         raise HTTPException(status_code=400, detail=f"send 1 to {MAX_PHOTOS} photos")
     with db() as conn:
         row = authorize_edit(conn, code, token)
         sub_id = row["id"]
+
+        existing = [
+            r["filename"]
+            for r in conn.execute(
+                "SELECT filename FROM submission_photos WHERE submission_id = ? ORDER BY id",
+                (sub_id,),
+            )
+        ]
+        if len(existing) + len(photos) > MAX_PHOTOS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{MAX_PHOTOS} photos max — delete one to free a slot",
+            )
 
         saved = []
         for photo in photos:
@@ -437,33 +451,48 @@ async def upload_photos(
             (UPLOADS_DIR / name).write_bytes(data)
             saved.append(name)
 
-        # replace the previous set: rows + files on disk
-        old = [
-            r["filename"]
-            for r in conn.execute(
-                "SELECT filename FROM submission_photos WHERE submission_id = ?", (sub_id,)
-            )
-        ]
-        conn.execute("DELETE FROM submission_photos WHERE submission_id = ?", (sub_id,))
         for name in saved:
             conn.execute(
                 "INSERT INTO submission_photos (submission_id, filename) VALUES (?, ?)",
                 (sub_id, name),
             )
-        for name in old:
-            (UPLOADS_DIR / name).unlink(missing_ok=True)
 
-        return {"ok": True, "photos": [f"/uploads/{n}" for n in saved]}
+        return {"ok": True, "photos": [f"/uploads/{n}" for n in existing + saved]}
 
 
-class CoverBody(BaseModel):
+class PhotoBody(BaseModel):
     code: str | None = None
     token: str | None = None
     photo: str
 
 
+@app.post("/submissions/photos/delete")
+def delete_photo(body: PhotoBody):
+    """Remove one uploaded photo from the project: row + file on disk."""
+    with db() as conn:
+        row = authorize_edit(conn, body.code, body.token)
+        sub_id = row["id"]
+        name = body.photo.rsplit("/", 1)[-1]
+        found = conn.execute(
+            "SELECT id FROM submission_photos WHERE submission_id = ? AND filename = ?",
+            (sub_id, name),
+        ).fetchone()
+        if not found:
+            raise HTTPException(status_code=404, detail="no such photo on this project")
+        conn.execute("DELETE FROM submission_photos WHERE id = ?", (found["id"],))
+        (UPLOADS_DIR / name).unlink(missing_ok=True)
+        rest = [
+            r["filename"]
+            for r in conn.execute(
+                "SELECT filename FROM submission_photos WHERE submission_id = ? ORDER BY id",
+                (sub_id,),
+            )
+        ]
+        return {"ok": True, "photos": [f"/uploads/{f}" for f in rest]}
+
+
 @app.post("/submissions/cover")
-def set_cover(body: CoverBody):
+def set_cover(body: PhotoBody):
     """Make one of the project's uploaded photos the cover (the first photo is
     the cover everywhere, so this just reorders the set)."""
     with db() as conn:

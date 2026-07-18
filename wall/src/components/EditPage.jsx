@@ -7,6 +7,7 @@ import {
   saveSubmission,
   createProject,
   uploadPhotos,
+  deletePhoto,
   setCover,
 } from "../api.js";
 
@@ -236,23 +237,35 @@ function CodeGate({ mode, onValid, error }) {
 function EditForm({ values, setValues, auth, existing, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
-  const [photoFiles, setPhotoFiles] = useState([]);
   const [photoErr, setPhotoErr] = useState(null);
-  const [previews, setPreviews] = useState([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
-  const pickPhotos = (e) => {
+  // photos upload the moment they're picked (appending to the set) so each
+  // one shows up immediately and can be removed on its own
+  const addPhotos = async (e) => {
     const files = Array.from(e.target.files ?? []);
-    if (files.length > 3) {
-      setPhotoErr("3 photos max — only the first 3 will be uploaded");
-    } else {
-      setPhotoErr(null);
+    e.target.value = ""; // let the same file be re-picked later
+    if (!files.length) return;
+    setPhotoErr(null);
+    setPhotoBusy(true);
+    try {
+      const { photos } = await uploadPhotos(auth, files);
+      setValues((v) => ({ ...v, photos }));
+    } catch (e2) {
+      setPhotoErr(e2.message);
+    } finally {
+      setPhotoBusy(false);
     }
-    const kept = files.slice(0, 3);
-    setPhotoFiles(kept);
-    setPreviews((old) => {
-      old.forEach((u) => URL.revokeObjectURL(u));
-      return kept.map((f) => URL.createObjectURL(f));
-    });
+  };
+
+  const removePhoto = async (src) => {
+    setPhotoErr(null);
+    try {
+      const { photos } = await deletePhoto(auth, src);
+      setValues((v) => ({ ...v, photos }));
+    } catch (e2) {
+      setPhotoErr(e2.message);
+    }
   };
 
   const makeCover = async (src) => {
@@ -308,7 +321,6 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
     setSaving(true);
     try {
       const result = await saveSubmission({ auth, values, existing });
-      if (photoFiles.length) await uploadPhotos(auth, photoFiles);
       onSaved(existing ? result.id : result.id);
     } catch (e2) {
       setErr(e2.message);
@@ -344,43 +356,53 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
 
       <Section title="cover + links">
         <Field
-          label="photos (up to 3)"
-          hint="uploaded from your device — the first one becomes the tile cover; a new upload replaces the current set"
+          label={`photos (${values.photos?.length ?? 0}/3)`}
+          hint="each photo uploads right away — the first one is the tile cover"
         >
-          {values.photos?.length > 0 && photoFiles.length === 0 && (
+          {values.photos?.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {values.photos.map((src, i) => (
                 <div key={src} className="flex flex-col gap-1">
                   <img src={src} alt={`photo ${i + 1}`} className="h-28 w-40 border border-line object-cover sm:h-32 sm:w-48" />
-                  {i === 0 ? (
-                    <span className="text-center text-[10px] font-semibold text-flame-orange">cover</span>
-                  ) : (
+                  <div className="flex items-center justify-center gap-3 text-[10px]">
+                    {i === 0 ? (
+                      <span className="font-semibold text-flame-orange">cover</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => makeCover(src)}
+                        className="text-ink-soft transition-colors hover:text-flame-orange"
+                      >
+                        make cover
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => makeCover(src)}
-                      className="text-center text-[10px] text-ink-soft transition-colors hover:text-flame-orange"
+                      onClick={() => removePhoto(src)}
+                      className="text-ink-soft transition-colors hover:text-flame-coral"
                     >
-                      make cover
+                      remove
                     </button>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
-          {previews.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {previews.map((src, i) => (
-                <img key={i} src={src} alt={`selected photo ${i + 1}`} className="h-28 w-40 border border-flame-orange object-cover sm:h-32 sm:w-48" />
-              ))}
-            </div>
+          {(values.photos?.length ?? 0) < 3 ? (
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              multiple
+              disabled={photoBusy}
+              onChange={addPhotos}
+              className="block w-full text-[12px] text-ink-soft file:mr-3 file:border file:border-line file:bg-transparent file:px-3 file:py-1.5 file:text-[11px] file:text-cream file:transition-colors hover:file:border-flame-orange disabled:opacity-40"
+            />
+          ) : (
+            <span className="block text-[11px] text-ink-soft">
+              all 3 slots used — remove a photo to add another
+            </span>
           )}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp"
-            multiple
-            onChange={pickPhotos}
-            className="block w-full text-[12px] text-ink-soft file:mr-3 file:border file:border-line file:bg-transparent file:px-3 file:py-1.5 file:text-[11px] file:text-cream file:transition-colors hover:file:border-flame-orange"
-          />
+          {photoBusy && <span className="mt-1 block text-[11px] text-sand">uploading…</span>}
           {photoErr && <span className="mt-1 block text-[11px] text-flame-coral">{photoErr}</span>}
         </Field>
         <div className="grid gap-4">
