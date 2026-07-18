@@ -357,8 +357,8 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <input value={m.name} onChange={setMember(i, "name")} className={INPUT} placeholder="name" />
-                <input value={m.twitter} onChange={setMember(i, "twitter")} className={INPUT} placeholder="twitter / x" />
-                <input value={m.linkedin} onChange={setMember(i, "linkedin")} className={INPUT} placeholder="linkedin" />
+                <input value={m.twitter} onChange={setMember(i, "twitter")} className={INPUT} placeholder="@username" />
+                <input value={m.linkedin} onChange={setMember(i, "linkedin")} className={INPUT} placeholder="https://www.linkedin.com/in/username" />
                 <input value={m.github} onChange={setMember(i, "github")} className={INPUT} placeholder="github" />
               </div>
             </div>

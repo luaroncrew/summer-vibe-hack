@@ -395,8 +395,8 @@
       row.className = "member";
       row.innerHTML =
         '<input data-m="name" placeholder="name *" maxlength="200" />' +
-        '<input data-m="twitter" placeholder="twitter" maxlength="300" />' +
-        '<input data-m="linkedin" placeholder="linkedin" maxlength="300" />' +
+        '<input data-m="twitter" placeholder="@username" maxlength="300" />' +
+        '<input data-m="linkedin" placeholder="https://www.linkedin.com/in/username" maxlength="300" />' +
         '<button class="rm" type="button" aria-label="remove teammate">×</button>';
       row.querySelector(".rm").addEventListener("click", function () {
         if (membersBox.children.length > 1) row.remove();
