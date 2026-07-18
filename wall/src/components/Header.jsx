@@ -6,12 +6,13 @@ import catGif from "../assets/cat.gif";
 // the middle, and the live count + nav on the right.
 export default function Header({ count }) {
   return (
-    <header className="relative z-10 flex items-center gap-4 border-b border-line bg-ink-2 px-5 py-3 sm:px-7">
+    <header className="relative z-10 flex items-center gap-4 border-b border-line bg-ink-2 px-5 py-1.5 sm:px-7">
       <div className="flex flex-1 items-center">
+        {/* negative margins keep the cat full-size without inflating the bar */}
         <img
           src={catGif}
           alt="le chat"
-          className="h-14 w-auto invert mix-blend-screen sm:h-16"
+          className="-my-3 h-14 w-auto invert mix-blend-screen sm:h-16"
         />
       </div>
 
