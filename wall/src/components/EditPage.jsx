@@ -201,16 +201,36 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
   const [err, setErr] = useState(null);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoErr, setPhotoErr] = useState(null);
+  const [previews, setPreviews] = useState([]);
 
   const pickPhotos = (e) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length > 3) {
       setPhotoErr("3 photos max — only the first 3 will be uploaded");
-      setPhotoFiles(files.slice(0, 3));
     } else {
       setPhotoErr(null);
-      setPhotoFiles(files);
     }
+    const kept = files.slice(0, 3);
+    setPhotoFiles(kept);
+    setPreviews((old) => {
+      old.forEach((u) => URL.revokeObjectURL(u));
+      return kept.map((f) => URL.createObjectURL(f));
+    });
+  };
+
+  // a single emoji only: keep the first grapheme of whatever gets typed/pasted
+  const setEmoji = (e) => {
+    const v = e.target.value.trim();
+    let first = "";
+    if (v) {
+      try {
+        const seg = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+        first = [...seg.segment(v)][0]?.segment ?? "";
+      } catch {
+        first = Array.from(v)[0] ?? "";
+      }
+    }
+    setValues((val) => ({ ...val, emojis: first }));
   };
 
   const set = (k) => (e) => setValues((v) => ({ ...v, [k]: e.target.value }));
@@ -268,8 +288,8 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
       </header>
 
       <Section title="the basics">
-        <Field label="emojis" hint="a few emoji shown by the name, e.g. 🌊🔥🏄">
-          <input value={values.emojis} onChange={set("emojis")} className={INPUT} placeholder="🌊🔥🏄" />
+        <Field label="emoji" hint="one emoji shown by the name, e.g. 🌊">
+          <input value={values.emojis} onChange={setEmoji} className={INPUT} placeholder="🌊" />
         </Field>
         <Field label="project name" required>
           <input value={values.name} onChange={set("name")} className={INPUT} placeholder="tide pool" />
@@ -288,6 +308,13 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
             <div className="mb-2 flex gap-2">
               {values.photos.map((src, i) => (
                 <img key={i} src={src} alt={`photo ${i + 1}`} className="h-14 w-20 border border-line object-cover" />
+              ))}
+            </div>
+          )}
+          {previews.length > 0 && (
+            <div className="mb-2 flex gap-2">
+              {previews.map((src, i) => (
+                <img key={i} src={src} alt={`selected photo ${i + 1}`} className="h-14 w-20 border border-flame-orange object-cover" />
               ))}
             </div>
           )}

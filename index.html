@@ -263,6 +263,13 @@
     cursor: pointer;
   }
   .ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .photo-previews { display: flex; gap: 6px; margin-top: 8px; }
+  .photo-previews img {
+    width: 76px;
+    height: 57px;
+    object-fit: cover;
+    border: 1px solid var(--line);
+  }
   .msg { margin: 14px 0 0; font-size: 13px; }
   .msg.err { color: var(--accent); }
   .msg a { color: var(--accent); font-weight: 700; }
@@ -329,6 +336,7 @@
 
     <span class="label">photos (optional, up to 3)</span>
     <input name="photos" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple />
+    <div class="photo-previews" id="photo-previews"></div>
 
     <span class="label">your team's 6-digit code *</span>
     <input name="code" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="123456" />
@@ -398,6 +406,19 @@
     }
     addMember();
     document.getElementById("add-member").addEventListener("click", addMember);
+
+    // live previews for the picked photos
+    var previewBox = document.getElementById("photo-previews");
+    form.elements.photos.addEventListener("change", function () {
+      previewBox.querySelectorAll("img").forEach(function (img) { URL.revokeObjectURL(img.src); });
+      previewBox.innerHTML = "";
+      Array.prototype.slice.call(form.elements.photos.files, 0, 3).forEach(function (file) {
+        var img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.alt = file.name;
+        previewBox.appendChild(img);
+      });
+    });
 
     document.getElementById("open-signup").addEventListener("click", function () {
       overlay.classList.add("open");
