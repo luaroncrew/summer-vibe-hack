@@ -311,43 +311,10 @@
 
 <nav class="topnav">
   <a class="navbtn" href="/wall/">go to /wall<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"/></svg></a>
-  <button class="navbtn" type="button" id="open-signup">sign-up</button>
+  <a class="navbtn" href="/wall/#/edit">sign-up</a>
 </nav>
 
-<div class="overlay" id="signup-overlay">
-  <form class="modal" id="signup-form" novalidate>
-    <h2>sign-up</h2>
 
-    <span class="label">project name *</span>
-    <input name="project_name" required maxlength="200" placeholder="Summer Vibe" />
-
-    <span class="label">description *</span>
-    <textarea name="description" required maxlength="5000" placeholder="what are you building? 2 phrases"></textarea>
-
-    <span class="label">team *</span>
-    <div id="members"></div>
-    <button class="minor" type="button" id="add-member">+ add teammate</button>
-
-    <span class="label">links (optional)</span>
-    <input name="github_url" maxlength="1000" placeholder="github repo" style="margin-bottom:6px" />
-    <input name="demo_url" maxlength="1000" placeholder="live demo" style="margin-bottom:6px" />
-    <input name="video_url" maxlength="1000" placeholder="demo video" />
-
-    <span class="label">photos (optional, up to 3)</span>
-    <input name="photos" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple />
-    <div class="photo-previews" id="photo-previews"></div>
-
-    <span class="label">your team's 6-digit code *</span>
-    <input name="code" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="123456" />
-
-    <p class="msg" id="signup-msg"></p>
-
-    <div class="actions">
-      <button class="primary" type="submit" id="signup-submit">submit</button>
-      <button class="ghost" type="button" id="close-signup">close</button>
-    </div>
-  </form>
-</div>
 
 <main id="card">
   <h1>get on the wall</h1>
@@ -382,113 +349,6 @@
 <a class="foot" href="https://github.com/luaroncrew/summer-vibe-hack" target="_blank" rel="noopener">github.com/luaroncrew/summer-vibe-hack<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"/></svg></a>
 
 <script>
-  // Sign-up modal: dynamic member rows, POST /submissions with the team code.
-  (function () {
-    var overlay = document.getElementById("signup-overlay");
-    var form = document.getElementById("signup-form");
-    var membersBox = document.getElementById("members");
-    var msg = document.getElementById("signup-msg");
-    var submitBtn = document.getElementById("signup-submit");
-
-    function addMember() {
-      var row = document.createElement("div");
-      row.className = "member";
-      row.innerHTML =
-        '<input data-m="name" placeholder="name *" maxlength="200" />' +
-        '<input data-m="twitter" placeholder="@username" maxlength="300" />' +
-        '<input data-m="linkedin" placeholder="https://www.linkedin.com/in/username" maxlength="300" />' +
-        '<button class="rm" type="button" aria-label="remove teammate">×</button>';
-      row.querySelector(".rm").addEventListener("click", function () {
-        if (membersBox.children.length > 1) row.remove();
-      });
-      membersBox.appendChild(row);
-    }
-    addMember();
-    document.getElementById("add-member").addEventListener("click", addMember);
-
-    // live previews for the picked photos
-    var previewBox = document.getElementById("photo-previews");
-    form.elements.photos.addEventListener("change", function () {
-      previewBox.querySelectorAll("img").forEach(function (img) { URL.revokeObjectURL(img.src); });
-      previewBox.innerHTML = "";
-      Array.prototype.slice.call(form.elements.photos.files, 0, 3).forEach(function (file) {
-        var img = document.createElement("img");
-        img.src = URL.createObjectURL(file);
-        img.alt = file.name;
-        previewBox.appendChild(img);
-      });
-    });
-
-    document.getElementById("open-signup").addEventListener("click", function () {
-      overlay.classList.add("open");
-    });
-    document.getElementById("close-signup").addEventListener("click", function () {
-      overlay.classList.remove("open");
-    });
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) overlay.classList.remove("open");
-    });
-
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      msg.textContent = "";
-      msg.className = "msg";
-
-      var f = form.elements;
-      var members = [];
-      membersBox.querySelectorAll(".member").forEach(function (row) {
-        var m = {};
-        row.querySelectorAll("input").forEach(function (inp) {
-          var v = inp.value.trim();
-          if (v) m[inp.getAttribute("data-m")] = v;
-        });
-        if (m.name) members.push(m);
-      });
-
-      var body = { code: f.code.value.trim(), project_name: f.project_name.value.trim(), description: f.description.value.trim(), members: members };
-      ["github_url", "demo_url", "video_url"].forEach(function (k) {
-        var v = f[k].value.trim();
-        if (v) body[k] = v;
-      });
-
-      if (!body.project_name || !body.description) { msg.textContent = "project name and description are required"; msg.className = "msg err"; return; }
-      if (!members.length) { msg.textContent = "add at least one teammate (name)"; msg.className = "msg err"; return; }
-      if (!/^\d{6}$/.test(body.code)) { msg.textContent = "the code is 6 digits"; msg.className = "msg err"; return; }
-      var files = Array.prototype.slice.call(f.photos.files || []);
-      if (files.length > 3) { msg.textContent = "3 photos max"; msg.className = "msg err"; return; }
-
-      function uploadPhotos() {
-        if (!files.length) return Promise.resolve();
-        var fd = new FormData();
-        fd.append("code", body.code);
-        files.forEach(function (file) { fd.append("photos", file); });
-        return fetch("/submissions/photos", { method: "POST", body: fd }).then(function (res) {
-          if (!res.ok) throw new Error("photo upload failed (" + res.status + ")");
-        });
-      }
-
-      submitBtn.disabled = true;
-      fetch("/submissions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-        .then(function (res) { return res.json().then(function (data) { return { ok: res.status === 201, status: res.status, data: data }; }); })
-        .then(function (r) {
-          if (r.ok) {
-            return uploadPhotos().then(function () {
-              form.reset();
-              membersBox.innerHTML = "";
-              addMember();
-              msg.innerHTML = 'you’re on the wall 🎉 <a href="/wall/">go see it</a> — good luck!';
-            }, function (err) {
-              msg.innerHTML = 'submitted, but ' + err.message + ' — you’re on the wall, retry photos from the edit page. <a href="/wall/">go see it</a>';
-            });
-          }
-          msg.textContent = (r.data && r.data.detail) ? String(r.data.detail) : "something went wrong (" + r.status + ")";
-          msg.className = "msg err";
-        })
-        .catch(function () { msg.textContent = "network error — try again"; msg.className = "msg err"; })
-        .finally(function () { submitBtn.disabled = false; });
-    });
-  })();
-
   // Copy buttons: each copies its data-copy text and flips to a check glyph.
   (function () {
     var COPY = "M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z";
