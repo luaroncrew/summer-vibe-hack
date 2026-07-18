@@ -127,7 +127,6 @@ function Loaded({ project }) {
     { href: safeUrl(project.demoUrl), label: "open demo" },
     { href: githubUrl(project.githubUrl), label: "github" },
     { href: safeUrl(project.videoUrl), label: "demo video" },
-    { href: safeUrl(project.deckUrl), label: "pitch deck" },
   ].filter((l) => l.href);
 
   return (

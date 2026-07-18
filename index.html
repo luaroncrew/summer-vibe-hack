@@ -331,8 +331,7 @@
     <span class="label">links (optional)</span>
     <input name="github_url" maxlength="1000" placeholder="github repo" style="margin-bottom:6px" />
     <input name="demo_url" maxlength="1000" placeholder="live demo" style="margin-bottom:6px" />
-    <input name="video_url" maxlength="1000" placeholder="demo video" style="margin-bottom:6px" />
-    <input name="deck_url" maxlength="1000" placeholder="pitch deck" />
+    <input name="video_url" maxlength="1000" placeholder="demo video" />
 
     <span class="label">photos (optional, up to 3)</span>
     <input name="photos" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple />
@@ -447,7 +446,7 @@
       });
 
       var body = { code: f.code.value.trim(), project_name: f.project_name.value.trim(), description: f.description.value.trim(), members: members };
-      ["github_url", "demo_url", "video_url", "deck_url"].forEach(function (k) {
+      ["github_url", "demo_url", "video_url"].forEach(function (k) {
         var v = f[k].value.trim();
         if (v) body[k] = v;
       });

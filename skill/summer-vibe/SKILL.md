@@ -22,7 +22,6 @@ someone doesn't have. Collect answers into these fields:
 - `demo_url`: live demo / deployment (optional)
 - `video_url`: demo video (optional)
 - `github_url`: the project repo (optional)
-- `deck_url`: pitch deck (optional)
 
 ## Interview
 
@@ -39,8 +38,7 @@ Ask these in order, ONE AT A TIME. Let people answer "none"/"skip" to any option
    → accept handles or full URLs; either or both may be skipped ("none"/"skip" is fine).
 
 4. **Project links** (all optional, ask together, accept whatever they give):
-   github repo → `github_url`, live demo → `demo_url`, demo video → `video_url`,
-   pitch deck → `deck_url`.
+   github repo → `github_url`, live demo → `demo_url`, demo video → `video_url`.
 
 5. **"Your team's 6-digit sign-up code?"** (required — the organizers handed it out;
    without it you can't submit)
@@ -97,9 +95,9 @@ help them change it:
    and remind them of their code and page `url` so they can save both.
 
 2. Ask **what they want to change.** Any field from the interview is fair game —
-   name, description, members, or any of the links (github/demo/video/deck). This is
-   the moment to add links they didn't have during the first check-in (pitch deck went
-   live, demo got deployed, video is up).
+   name, description, members, or any of the links (github/demo/video). This is
+   the moment to add links they didn't have during the first check-in (demo got
+   deployed, video is up).
 
 3. Send a `PUT` to the same `/submissions` url with `code` plus **only the fields that
    changed.** Note: `members`, if you include it, replaces the whole list, so send every
@@ -108,7 +106,7 @@ help them change it:
    ```bash
    curl -sS -X PUT "__API_URL__/submissions" \
      -H 'Content-Type: application/json' \
-     -d '{"code":"123456","deck_url":"https://...","video_url":"https://..."}'
+     -d '{"code":"123456","demo_url":"https://...","video_url":"https://..."}'
    ```
 
    Response: **200** updated — the JSON has `url`; confirm what changed and read back

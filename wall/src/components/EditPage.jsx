@@ -327,11 +327,10 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
           />
           {photoErr && <span className="mt-1 block text-[11px] text-flame-coral">{photoErr}</span>}
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
           <Field label="live demo"><input value={values.demoUrl} onChange={set("demoUrl")} className={INPUT} placeholder="https://…" /></Field>
           <Field label="github repo"><input value={values.githubUrl} onChange={set("githubUrl")} className={INPUT} placeholder="github.com/…" /></Field>
           <Field label="demo video"><input value={values.videoUrl} onChange={set("videoUrl")} className={INPUT} placeholder="https://…" /></Field>
-          <Field label="pitch deck"><input value={values.deckUrl} onChange={set("deckUrl")} className={INPUT} placeholder="https://…" /></Field>
         </div>
       </Section>
 
