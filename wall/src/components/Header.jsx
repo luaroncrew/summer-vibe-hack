@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { VOTING } from "../lib/flags.js";
 import catGif from "../assets/cat.gif";
 
 // Thin header over the grid, in dark ink: the cat on the left, the wordmark in
@@ -25,7 +24,6 @@ export default function Header({ count }) {
           <b className="font-semibold text-cream">{count == null ? "…" : count}</b>
           on the wall
         </span>
-        {VOTING && <Link to="/vote" className={NAV}>vote</Link>}
         <Link to="/signup" className={NAV}>+ add project</Link>
         <Link to="/edit" className={NAV}>edit</Link>
       </div>
