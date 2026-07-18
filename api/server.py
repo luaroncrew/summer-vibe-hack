@@ -456,6 +456,39 @@ async def upload_photos(
         return {"ok": True, "photos": [f"/uploads/{n}" for n in saved]}
 
 
+class CoverBody(BaseModel):
+    code: str | None = None
+    token: str | None = None
+    photo: str
+
+
+@app.post("/submissions/cover")
+def set_cover(body: CoverBody):
+    """Make one of the project's uploaded photos the cover (the first photo is
+    the cover everywhere, so this just reorders the set)."""
+    with db() as conn:
+        row = authorize_edit(conn, body.code, body.token)
+        sub_id = row["id"]
+        name = body.photo.rsplit("/", 1)[-1]
+        rows = [
+            r["filename"]
+            for r in conn.execute(
+                "SELECT filename FROM submission_photos WHERE submission_id = ? ORDER BY id",
+                (sub_id,),
+            )
+        ]
+        if name not in rows:
+            raise HTTPException(status_code=404, detail="no such photo on this project")
+        ordered = [name] + [f for f in rows if f != name]
+        conn.execute("DELETE FROM submission_photos WHERE submission_id = ?", (sub_id,))
+        for f in ordered:
+            conn.execute(
+                "INSERT INTO submission_photos (submission_id, filename) VALUES (?, ?)",
+                (sub_id, f),
+            )
+        return {"ok": True, "photos": [f"/uploads/{f}" for f in ordered]}
+
+
 @app.post("/vote")
 def vote(body: Vote):
     """Cast the team's single vote. One code = one vote; re-voting replaces it,

@@ -12,12 +12,24 @@ export const installUrl = `${BASE}/`;
 // The wall reads from the submissions api, whose model is: project_name,
 // description, demo_url, members[{name, twitter, linkedin}], created_at.
 // Normalize it into one shape the ui uses, tolerant of the older field names.
+// One emoji per project: older submissions may hold several — keep the first.
+function firstEmoji(v) {
+  const t = (v ?? "").trim();
+  if (!t) return "";
+  try {
+    const seg = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+    return [...seg.segment(t)][0]?.segment ?? "";
+  } catch {
+    return Array.from(t)[0] ?? "";
+  }
+}
+
 function normalize(s) {
   return {
     id: s.id,
     name: s.project_name ?? s.name ?? "untitled",
     description: s.description ?? s.project ?? "",
-    emojis: s.emojis ?? "",
+    emojis: firstEmoji(s.emojis),
     imageUrl: s.image_url ?? null,
     demoUrl: s.demo_url ?? null,
     videoUrl: s.video_url ?? null,
@@ -140,6 +152,12 @@ export async function createProject(code, name) {
     description: "",
     members: [],
   });
+}
+
+// Promote one uploaded photo to cover (reorders the set server-side).
+export async function setCover(auth, photoUrl) {
+  const data = await postJSON("/submissions/cover", { ...auth, photo: photoUrl });
+  return { photos: (data.photos ?? []).map((p) => url(p)) };
 }
 
 export async function saveSubmission({ auth, values, existing }) {

@@ -153,23 +153,25 @@ function Loaded({ project, lightbox, setLightbox }) {
         />
         <div className="relative p-6 pt-24 sm:p-8 sm:pt-32">
           <h1 className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[26px] font-bold leading-tight tracking-tight text-cream sm:text-[34px]">
-            {project.name}
             {emojis && <span className="text-[22px] sm:text-[28px]">{emojis}</span>}
+            {project.name}
           </h1>
           {tagline && (
             <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-sand">
               {tagline}
             </p>
           )}
-          {links.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {links.map((l) => (
-                <LinkChip key={l.label} href={l.href} label={l.label} />
-              ))}
-            </div>
-          )}
         </div>
       </header>
+
+      {/* project links, right under the cover card */}
+      {links.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {links.map((l) => (
+            <LinkChip key={l.label} href={l.href} label={l.label} />
+          ))}
+        </div>
+      )}
 
       {/* what they're building */}
       <Section label="what they're building">

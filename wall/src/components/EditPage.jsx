@@ -7,6 +7,7 @@ import {
   saveSubmission,
   createProject,
   uploadPhotos,
+  setCover,
 } from "../api.js";
 
 // Edit a project on the wall. Two ways in: a team enters their 6-digit code,
@@ -246,6 +247,16 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
     });
   };
 
+  const makeCover = async (src) => {
+    setPhotoErr(null);
+    try {
+      const { photos } = await setCover(auth, src);
+      setValues((v) => ({ ...v, photos }));
+    } catch (e2) {
+      setPhotoErr(e2.message);
+    }
+  };
+
   // a single emoji only: keep the first grapheme of whatever gets typed/pasted
   const setEmoji = (e) => {
     const v = e.target.value.trim();
@@ -331,7 +342,20 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
           {values.photos?.length > 0 && photoFiles.length === 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {values.photos.map((src, i) => (
-                <img key={i} src={src} alt={`photo ${i + 1}`} className="h-28 w-40 border border-line object-cover sm:h-32 sm:w-48" />
+                <div key={src} className="flex flex-col gap-1">
+                  <img src={src} alt={`photo ${i + 1}`} className="h-28 w-40 border border-line object-cover sm:h-32 sm:w-48" />
+                  {i === 0 ? (
+                    <span className="text-center text-[10px] font-semibold text-flame-orange">cover</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => makeCover(src)}
+                      className="text-center text-[10px] text-ink-soft transition-colors hover:text-flame-orange"
+                    >
+                      make cover
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}

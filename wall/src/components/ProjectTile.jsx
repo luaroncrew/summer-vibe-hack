@@ -37,10 +37,8 @@ export default function ProjectTile({ project, index }) {
 
       {/* heading + description, always visible */}
       <div className="absolute inset-x-0 bottom-0 p-4">
-        {emojis && (
-          <div className="mb-1 text-[15px] leading-none drop-shadow-sm">{emojis}</div>
-        )}
         <h2 className="truncate text-[15px] font-semibold text-cream drop-shadow-sm sm:text-[16px]">
+          {emojis && <span className="mr-1.5">{emojis}</span>}
           {project.name}
         </h2>
         {line && (
