@@ -114,14 +114,14 @@ export default function ProjectPage() {
             <p className="text-[13px] text-ink-soft">loading…</p>
           </Panel>
         ) : (
-          <Loaded project={project} />
+          <Loaded project={project} lightbox={lightbox} setLightbox={setLightbox} />
         )}
       </div>
     </div>
   );
 }
 
-function Loaded({ project }) {
+function Loaded({ project, lightbox, setLightbox }) {
   const cover = coverFor(project);
   const tagline = blurb(project.description, 120);
   const joined = fmtDate(project.createdAt);
