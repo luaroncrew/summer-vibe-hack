@@ -16,7 +16,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/p/:id" element={<ProjectPage />} />
-        <Route path="/edit" element={<EditPage />} />
+        <Route path="/edit" element={<EditPage mode="edit" />} />
+        <Route path="/signup" element={<EditPage mode="signup" />} />
         {VOTING && <Route path="/vote" element={<VotePage />} />}
       </Routes>
     </HashRouter>

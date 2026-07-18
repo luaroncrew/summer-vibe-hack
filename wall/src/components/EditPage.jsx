@@ -49,7 +49,7 @@ function fromSubmission(s) {
   };
 }
 
-export default function EditPage() {
+export default function EditPage({ mode = "edit" }) {
   const [params] = useSearchParams();
   const token = params.get("token");
 
@@ -97,6 +97,7 @@ export default function EditPage() {
 
         {phase === "gate" && (
           <CodeGate
+            mode={mode}
             error={error}
             onValid={({ code, submission }) => {
               setAuth({ code });
@@ -144,7 +145,8 @@ export default function EditPage() {
 
 /* --- code gate ----------------------------------------------------------- */
 
-function CodeGate({ onValid, error }) {
+function CodeGate({ mode, onValid, error }) {
+  const signup = mode === "signup";
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -158,7 +160,10 @@ function CodeGate({ onValid, error }) {
       const trimmed = code.trim();
       let { submission } = await lookupCode(trimmed);
       if (!submission) {
-        // first time in: register with just the name, then edit everything
+        if (!signup) {
+          setErr("no project for this code yet — use sign-up first");
+          return;
+        }
         if (!name.trim()) {
           setErr("enter your team name to sign up");
           return;
@@ -177,36 +182,41 @@ function CodeGate({ onValid, error }) {
   return (
     <form onSubmit={submit}>
       <h1 className="text-[24px] font-bold tracking-tight text-cream sm:text-[28px]">
-        sign up
+        {signup ? "sign up" : "edit your project"}
       </h1>
-      <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-        don't have a code? contact{" "}
-        <a
-          href="mailto:cyrill.makarov@gmail.com?subject=project%20submission"
-          className="text-flame-orange no-underline hover:underline"
-        >
-          cyrill.makarov@gmail.com
-        </a>{" "}
-        with "project submission" in the subject.
-      </p>
+      {signup && (
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+          don't have a code? contact{" "}
+          <a
+            href="mailto:cyrill.makarov@gmail.com?subject=project%20submission"
+            className="text-flame-orange no-underline hover:underline"
+          >
+            cyrill.makarov@gmail.com
+          </a>{" "}
+          with "project submission" in the subject.
+        </p>
+      )}
 
-      <div className="mt-6">
-        <label className={LABEL}>team name</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoFocus
-          placeholder="tide pool"
-          className={INPUT}
-        />
-      </div>
+      {signup && (
+        <div className="mt-6">
+          <label className={LABEL}>team name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+            placeholder="tide pool"
+            className={INPUT}
+          />
+        </div>
+      )}
 
-      <div className="mt-4">
+      <div className={signup ? "mt-4" : "mt-6"}>
         <label className={LABEL}>team code</label>
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric"
+          autoFocus={!signup}
           placeholder="123456"
           className={`${INPUT} tracking-[0.4em]`}
         />

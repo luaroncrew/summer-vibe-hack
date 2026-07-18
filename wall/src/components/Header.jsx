@@ -25,7 +25,7 @@ export default function Header({ count }) {
           on the wall
         </span>
         {VOTING && <Link to="/vote" className={NAV}>vote</Link>}
-        <Link to="/edit" className={NAV}>+ add project</Link>
+        <Link to="/signup" className={NAV}>+ add project</Link>
         <Link to="/edit" className={NAV}>edit</Link>
       </div>
     </header>
