@@ -249,16 +249,6 @@ function Loaded({ project, lightbox, setLightbox }) {
       )}
 
       {/* slot for the model-written overview, filled in later */}
-      <Section label="generated overview">
-        <div className="flex items-start gap-3">
-          <span className="mt-[3px] inline-block h-[7px] w-[7px] shrink-0 bg-flame-coral" />
-          <p className="text-[12.5px] leading-relaxed text-ink-soft">
-            a longer write-up of this project, drafted by a model from the
-            details above, will land here soon.
-          </p>
-        </div>
-      </Section>
-
       <p className="pb-6 text-[11px] text-ink-soft">on the wall since {joined}</p>
     </article>
   );

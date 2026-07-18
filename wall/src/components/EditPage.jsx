@@ -5,7 +5,6 @@ import {
   lookupCode,
   resolveLink,
   saveSubmission,
-  createShareLink,
   uploadPhotos,
 } from "../api.js";
 
@@ -380,69 +379,7 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
         )}
       </div>
 
-      <ShareLink auth={auth} disabled={!existing} />
     </form>
-  );
-}
-
-/* --- teammate share link ------------------------------------------------- */
-
-function ShareLink({ auth, disabled }) {
-  const [urlText, setUrlText] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  const make = async () => {
-    setErr(null);
-    setBusy(true);
-    try {
-      const { token } = await createShareLink(auth);
-      // build the link for wherever this wall actually lives
-      const base = `${window.location.origin}${window.location.pathname}`;
-      setUrlText(`${base}#/edit?token=${token}`);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const copy = () => {
-    navigator.clipboard.writeText(urlText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    });
-  };
-
-  return (
-    <div className="border border-dashed border-line bg-ink-2/40 p-4">
-      <h3 className="text-[11px] tracking-wide text-flame-orange">
-        invite a teammate
-      </h3>
-      <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
-        create a link that lets a teammate edit this page without the code. it
-        works for 30 days.
-      </p>
-
-      {disabled ? (
-        <p className="mt-3 text-[11px] text-ink-soft">
-          save the project first, then you can share an edit link.
-        </p>
-      ) : !urlText ? (
-        <button type="button" onClick={make} disabled={busy} className={`${MINOR} mt-3`}>
-          {busy ? "creating…" : "create edit link"}
-        </button>
-      ) : (
-        <div className="mt-3 flex items-stretch gap-2">
-          <input readOnly value={urlText} className={`${INPUT} text-[11px]`} onFocus={(e) => e.target.select()} />
-          <button type="button" onClick={copy} className={MINOR}>
-            {copied ? "copied" : "copy"}
-          </button>
-        </div>
-      )}
-      {err && <p className="mt-2 text-[12px] text-flame-coral">{err}</p>}
-    </div>
   );
 }
 
@@ -467,7 +404,6 @@ function Saved({ id, auth, onKeepEditing }) {
           </button>
         </div>
       </Panel>
-      <ShareLink auth={auth} disabled={false} />
     </div>
   );
 }
