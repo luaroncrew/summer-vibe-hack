@@ -23,8 +23,7 @@ Greet the user briefly, then ask these questions, ONE AT A TIME (keep it snappy,
 3. For EACH member from step 2, ask separately, one message per member:
    **"Socials of <member name> (twitter/linkedin)?"**
    → accept handles or full URLs; either or both may be skipped ("none"/"skip" is fine).
-4. **"Link to a demo of your product?"** (optional — URL to a live demo, video, deployment... "none"/"skip" is fine)
-5. **"Your team's 6-digit sign-up code?"** (required — the organizers handed it out; without it you can't submit)
+4. **"Your team's 6-digit sign-up code?"** (required — the organizers handed it out; without it you can't submit)
 
 Then show a short summary of everything collected and ask "Submit?".
 
@@ -37,7 +36,6 @@ curl -sS -X POST "__API_URL__/submissions" \
     "code": "123456",
     "project_name": "...",
     "description": "...",
-    "demo_url": "https://...",
     "members": [
       {"name": "John Pork", "twitter": "@johnpork", "linkedin": "https://linkedin.com/in/johnpork"},
       {"name": "Artur Mensch"}
@@ -45,14 +43,16 @@ curl -sS -X POST "__API_URL__/submissions" \
   }'
 ```
 
-Omit `twitter`/`linkedin` keys for members who skipped them, and `demo_url` if they have no demo yet (they can add it later by re-running this skill — it will be a 409 → update flow).
+Omit `twitter`/`linkedin` keys for members who skipped them. Do NOT ask about demos during initial registration.
 
 Handle the response:
 - **201** → they're on the wall; thank them and stop.
 - **401** → the code is wrong; re-ask the code and retry once.
 - **409** → this code already submitted. Ask if they want to update their entry;
-  on yes, send `PUT` instead of `POST` (same URL) — include `code` plus only what changed
-  (note: `members`, when included, replaces the whole member list, so send all members).
+  on yes, ask what to change — any of the fields above, plus a demo link (`"demo_url"`,
+  a URL to a live demo/video/deployment) — then send `PUT` instead of `POST` (same URL),
+  including `code` plus only what changed (note: `members`, when included, replaces the
+  whole member list, so send all members).
 - anything else → show the error, offer to retry once.
 
 Do not do anything else: no file edits, no other commands beyond the curl calls above.
