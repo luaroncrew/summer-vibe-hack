@@ -52,6 +52,7 @@ with db() as conn:
             code TEXT NOT NULL UNIQUE REFERENCES codes(code),
             project_name TEXT NOT NULL,
             description TEXT NOT NULL,
+            demo_url TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
@@ -109,6 +110,7 @@ class Submission(BaseModel):
     code: str
     project_name: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1, max_length=5000)
+    demo_url: str | None = Field(default=None, max_length=1000)
     members: list[Member] = Field(min_length=1, max_length=20)
 
 
@@ -116,6 +118,7 @@ class SubmissionUpdate(BaseModel):
     code: str
     project_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1, max_length=5000)
+    demo_url: str | None = Field(default=None, max_length=1000)
     members: list[Member] | None = Field(default=None, min_length=1, max_length=20)
 
 
@@ -142,9 +145,9 @@ def create_submission(sub: Submission):
             )
         ts = now()
         cur = conn.execute(
-            "INSERT INTO submissions (code, project_name, description, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (sub.code, sub.project_name, sub.description, ts, ts),
+            "INSERT INTO submissions (code, project_name, description, demo_url, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (sub.code, sub.project_name, sub.description, sub.demo_url, ts, ts),
         )
         replace_members(conn, cur.lastrowid, sub.members)
         return {"id": cur.lastrowid, "status": "saved"}
@@ -164,6 +167,8 @@ def update_submission(upd: SubmissionUpdate):
             fields["project_name"] = upd.project_name
         if upd.description is not None:
             fields["description"] = upd.description
+        if upd.demo_url is not None:
+            fields["demo_url"] = upd.demo_url
         if not fields and upd.members is None:
             raise HTTPException(status_code=400, detail="nothing to update")
         if fields:
