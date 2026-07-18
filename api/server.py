@@ -1,6 +1,6 @@
 """Summer Vibe Hack — submissions API + skill install page.
 
-Run:  pip install -r requirements.txt && uvicorn server:app --host 0.0.0.0 --port 8000 --proxy-headers
+Run:  pip install -r requirements.txt && uvicorn server:app --host 0.0.0.0 --port 3000 --proxy-headers
 Data: SQLite file `submissions.db` next to this script.
 Auth: pre-generated 6-digit team codes (see generate_codes.py). One code = one
       team = one submission; the same code authorizes later edits.
@@ -36,6 +36,7 @@ app.add_middleware(
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
         conn.commit()
@@ -49,13 +50,19 @@ with db() as conn:
         CREATE TABLE IF NOT EXISTS submissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT NOT NULL UNIQUE REFERENCES codes(code),
-            name TEXT NOT NULL,
-            project TEXT NOT NULL,
-            twitter TEXT,
-            linkedin TEXT,
-            extra TEXT,
+            project_name TEXT NOT NULL,
+            description TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            twitter TEXT,
+            linkedin TEXT
         )
     """)
 
@@ -64,9 +71,15 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def public(row: sqlite3.Row) -> dict:
+def public(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     d = dict(row)
     d.pop("code", None)
+    d["members"] = [
+        {"name": m["name"], "twitter": m["twitter"], "linkedin": m["linkedin"]}
+        for m in conn.execute(
+            "SELECT * FROM members WHERE submission_id = ? ORDER BY id", (row["id"],)
+        )
+    ]
     return d
 
 
@@ -77,22 +90,33 @@ def require_code(conn: sqlite3.Connection, code: str) -> None:
         raise HTTPException(status_code=401, detail="unknown code")
 
 
-class Submission(BaseModel):
-    code: str
+def replace_members(conn: sqlite3.Connection, submission_id: int, members: list) -> None:
+    conn.execute("DELETE FROM members WHERE submission_id = ?", (submission_id,))
+    for m in members:
+        conn.execute(
+            "INSERT INTO members (submission_id, name, twitter, linkedin) VALUES (?, ?, ?, ?)",
+            (submission_id, m.name, m.twitter, m.linkedin),
+        )
+
+
+class Member(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    project: str = Field(min_length=1, max_length=5000)
     twitter: str | None = Field(default=None, max_length=300)
     linkedin: str | None = Field(default=None, max_length=300)
-    extra: str | None = Field(default=None, max_length=5000)
+
+
+class Submission(BaseModel):
+    code: str
+    project_name: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=5000)
+    members: list[Member] = Field(min_length=1, max_length=20)
 
 
 class SubmissionUpdate(BaseModel):
     code: str
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    project: str | None = Field(default=None, min_length=1, max_length=5000)
-    twitter: str | None = Field(default=None, max_length=300)
-    linkedin: str | None = Field(default=None, max_length=300)
-    extra: str | None = Field(default=None, max_length=5000)
+    project_name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, min_length=1, max_length=5000)
+    members: list[Member] | None = Field(default=None, min_length=1, max_length=20)
 
 
 class Lookup(BaseModel):
@@ -118,10 +142,11 @@ def create_submission(sub: Submission):
             )
         ts = now()
         cur = conn.execute(
-            "INSERT INTO submissions (code, name, project, twitter, linkedin, extra,"
-            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (sub.code, sub.name, sub.project, sub.twitter, sub.linkedin, sub.extra, ts, ts),
+            "INSERT INTO submissions (code, project_name, description, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (sub.code, sub.project_name, sub.description, ts, ts),
         )
+        replace_members(conn, cur.lastrowid, sub.members)
         return {"id": cur.lastrowid, "status": "saved"}
 
 
@@ -134,22 +159,29 @@ def update_submission(upd: SubmissionUpdate):
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="no submission for this code yet")
-        fields = {
-            k: v
-            for k, v in upd.model_dump(exclude={"code"}).items()
-            if v is not None
-        }
-        if not fields:
+        fields = {}
+        if upd.project_name is not None:
+            fields["project_name"] = upd.project_name
+        if upd.description is not None:
+            fields["description"] = upd.description
+        if not fields and upd.members is None:
             raise HTTPException(status_code=400, detail="nothing to update")
-        sets = ", ".join(f"{k} = ?" for k in fields)
-        conn.execute(
-            f"UPDATE submissions SET {sets}, updated_at = ? WHERE code = ?",
-            (*fields.values(), now(), upd.code),
-        )
+        if fields:
+            sets = ", ".join(f"{k} = ?" for k in fields)
+            conn.execute(
+                f"UPDATE submissions SET {sets}, updated_at = ? WHERE id = ?",
+                (*fields.values(), now(), row["id"]),
+            )
+        else:
+            conn.execute(
+                "UPDATE submissions SET updated_at = ? WHERE id = ?", (now(), row["id"])
+            )
+        if upd.members is not None:
+            replace_members(conn, row["id"], upd.members)
         row = conn.execute(
-            "SELECT * FROM submissions WHERE code = ?", (upd.code,)
+            "SELECT * FROM submissions WHERE id = ?", (row["id"],)
         ).fetchone()
-        return {"status": "updated", "submission": public(row)}
+        return {"status": "updated", "submission": public(conn, row)}
 
 
 @app.post("/lookup")
@@ -160,7 +192,7 @@ def lookup(body: Lookup):
         row = conn.execute(
             "SELECT * FROM submissions WHERE code = ?", (body.code,)
         ).fetchone()
-        return {"valid": True, "submission": public(row) if row else None}
+        return {"valid": True, "submission": public(conn, row) if row else None}
 
 
 @app.get("/submissions")
@@ -169,7 +201,7 @@ def list_submissions():
         rows = conn.execute(
             "SELECT * FROM submissions ORDER BY created_at DESC"
         ).fetchall()
-        return [public(r) for r in rows]
+        return [public(conn, r) for r in rows]
 
 
 @app.get("/submissions/{sub_id}")
@@ -180,7 +212,7 @@ def get_submission(sub_id: int):
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="not found")
-        return public(row)
+        return public(conn, row)
 
 
 # ---- skill distribution: install page, QR, personalized SKILL.md ----

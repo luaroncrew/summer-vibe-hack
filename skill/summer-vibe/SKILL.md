@@ -1,6 +1,6 @@
 ---
 name: summer-vibe
-description: Register your hackathon project on the Summer Vibe social wall. Asks what you're building, your socials and your team code, then submits. Takes ~3 minutes.
+description: Register your hackathon project on the Summer Vibe social wall. Asks what you're building, your team members and their socials, then submits. Takes ~3 minutes.
 user-invocable: true
 allowed-tools: [bash]
 ---
@@ -14,30 +14,43 @@ API base URL: `__API_URL__`
 
 ## Steps
 
-1. Greet the user briefly: they're registering their project for the Summer Vibe wall.
-2. Ask these questions, ONE AT A TIME (keep it snappy, this should take 2-3 minutes total):
-   - Your name (or team name)?
-   - What are you building? (1-3 sentences)
-   - Your Twitter/X handle? (optional — accept handle or full URL, skip if none)
-   - Your LinkedIn? (optional — accept URL or name, skip if none)
-   - Your team's 6-digit code? (required — the organizers handed it out; without it you can't submit)
-3. Show a one-line summary of what you collected and ask "Submit?".
-4. On yes, submit with bash (build the JSON carefully, escape quotes in their answers):
+Greet the user briefly, then ask these questions, ONE AT A TIME (keep it snappy, ~3 minutes total):
+
+1. **"What do you build? Name + description, write in 2 phrases."**
+   → gives you `project_name` and `description`. If they only give one or the other, ask for the missing piece.
+2. **"List all members of your team. e.g (John Pork, Artur Mensch, ...)"**
+   → parse into a list of names.
+3. For EACH member from step 2, ask separately, one message per member:
+   **"Socials of <member name> (twitter/linkedin)?"**
+   → accept handles or full URLs; either or both may be skipped ("none"/"skip" is fine).
+4. **"Your team's 6-digit sign-up code?"** (required — the organizers handed it out; without it you can't submit)
+
+Then show a short summary of everything collected and ask "Submit?".
+
+On yes, submit with bash (build the JSON carefully, escape quotes in their answers):
 
 ```bash
 curl -sS -X POST "__API_URL__/submissions" \
   -H 'Content-Type: application/json' \
-  -d '{"code": "123456", "name": "...", "project": "...", "twitter": "...", "linkedin": "..."}'
+  -d '{
+    "code": "123456",
+    "project_name": "...",
+    "description": "...",
+    "members": [
+      {"name": "John Pork", "twitter": "@johnpork", "linkedin": "https://linkedin.com/in/johnpork"},
+      {"name": "Artur Mensch"}
+    ]
+  }'
 ```
 
-Omit `twitter`/`linkedin` keys entirely if the user skipped them.
+Omit `twitter`/`linkedin` keys for members who skipped them.
 
-5. Handle the response:
-   - **201** → they're on the wall; thank them and stop.
-   - **401** → the code is wrong; re-ask the code and retry once.
-   - **409** → this code already submitted. Ask if they want to update their entry;
-     on yes, send the same payload with `PUT` instead of `POST` (same URL, same body —
-     include only the fields they want to change, plus `code`).
-   - anything else → show the error, offer to retry once.
+Handle the response:
+- **201** → they're on the wall; thank them and stop.
+- **401** → the code is wrong; re-ask the code and retry once.
+- **409** → this code already submitted. Ask if they want to update their entry;
+  on yes, send `PUT` instead of `POST` (same URL) — include `code` plus only what changed
+  (note: `members`, when included, replaces the whole member list, so send all members).
+- anything else → show the error, offer to retry once.
 
 Do not do anything else: no file edits, no other commands beyond the curl calls above.
