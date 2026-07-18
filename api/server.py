@@ -45,6 +45,14 @@ def db():
         conn.close()
 
 
+def ensure_columns(conn: sqlite3.Connection, table: str, columns: dict) -> None:
+    """Add any missing columns to an existing table (idempotent migration)."""
+    have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+    for name, decl in columns.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 with db() as conn:
     conn.execute("CREATE TABLE IF NOT EXISTS codes (code TEXT PRIMARY KEY)")
     conn.execute("""
@@ -53,7 +61,12 @@ with db() as conn:
             code TEXT NOT NULL UNIQUE REFERENCES codes(code),
             project_name TEXT NOT NULL,
             description TEXT NOT NULL,
+            emojis TEXT,
+            image_url TEXT,
             demo_url TEXT,
+            video_url TEXT,
+            github_url TEXT,
+            deck_url TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
@@ -64,9 +77,16 @@ with db() as conn:
             submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             twitter TEXT,
-            linkedin TEXT
+            linkedin TEXT,
+            github TEXT
         )
     """)
+    # migrate older databases that predate these columns
+    ensure_columns(conn, "submissions", {
+        "emojis": "TEXT", "image_url": "TEXT", "video_url": "TEXT",
+        "github_url": "TEXT", "deck_url": "TEXT",
+    })
+    ensure_columns(conn, "members", {"github": "TEXT"})
 
 
 def now() -> str:
@@ -77,7 +97,12 @@ def public(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     d = dict(row)
     d.pop("code", None)
     d["members"] = [
-        {"name": m["name"], "twitter": m["twitter"], "linkedin": m["linkedin"]}
+        {
+            "name": m["name"],
+            "twitter": m["twitter"],
+            "linkedin": m["linkedin"],
+            "github": m["github"],
+        }
         for m in conn.execute(
             "SELECT * FROM members WHERE submission_id = ? ORDER BY id", (row["id"],)
         )
@@ -96,22 +121,33 @@ def replace_members(conn: sqlite3.Connection, submission_id: int, members: list)
     conn.execute("DELETE FROM members WHERE submission_id = ?", (submission_id,))
     for m in members:
         conn.execute(
-            "INSERT INTO members (submission_id, name, twitter, linkedin) VALUES (?, ?, ?, ?)",
-            (submission_id, m.name, m.twitter, m.linkedin),
+            "INSERT INTO members (submission_id, name, twitter, linkedin, github)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (submission_id, m.name, m.twitter, m.linkedin, m.github),
         )
+
+
+# the optional-link fields a submission carries, in one place so create/update stay in sync
+LINK_FIELDS = ("emojis", "image_url", "demo_url", "video_url", "github_url", "deck_url")
 
 
 class Member(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     twitter: str | None = Field(default=None, max_length=300)
     linkedin: str | None = Field(default=None, max_length=300)
+    github: str | None = Field(default=None, max_length=300)
 
 
 class Submission(BaseModel):
     code: str
     project_name: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1, max_length=5000)
+    emojis: str | None = Field(default=None, max_length=100)
+    image_url: str | None = Field(default=None, max_length=1000)
     demo_url: str | None = Field(default=None, max_length=1000)
+    video_url: str | None = Field(default=None, max_length=1000)
+    github_url: str | None = Field(default=None, max_length=1000)
+    deck_url: str | None = Field(default=None, max_length=1000)
     members: list[Member] = Field(min_length=1, max_length=20)
 
 
@@ -119,7 +155,12 @@ class SubmissionUpdate(BaseModel):
     code: str
     project_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1, max_length=5000)
+    emojis: str | None = Field(default=None, max_length=100)
+    image_url: str | None = Field(default=None, max_length=1000)
     demo_url: str | None = Field(default=None, max_length=1000)
+    video_url: str | None = Field(default=None, max_length=1000)
+    github_url: str | None = Field(default=None, max_length=1000)
+    deck_url: str | None = Field(default=None, max_length=1000)
     members: list[Member] | None = Field(default=None, min_length=1, max_length=20)
 
 
@@ -145,10 +186,15 @@ def create_submission(sub: Submission):
                 detail="this code already has a submission — use PUT /submissions to edit it",
             )
         ts = now()
+        cols = ["code", "project_name", "description", *LINK_FIELDS, "created_at", "updated_at"]
+        vals = [
+            sub.code, sub.project_name, sub.description,
+            *(getattr(sub, f) for f in LINK_FIELDS), ts, ts,
+        ]
         cur = conn.execute(
-            "INSERT INTO submissions (code, project_name, description, demo_url, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (sub.code, sub.project_name, sub.description, sub.demo_url, ts, ts),
+            f"INSERT INTO submissions ({', '.join(cols)})"
+            f" VALUES ({', '.join('?' * len(cols))})",
+            vals,
         )
         replace_members(conn, cur.lastrowid, sub.members)
         return {"id": cur.lastrowid, "status": "saved"}
@@ -168,8 +214,10 @@ def update_submission(upd: SubmissionUpdate):
             fields["project_name"] = upd.project_name
         if upd.description is not None:
             fields["description"] = upd.description
-        if upd.demo_url is not None:
-            fields["demo_url"] = upd.demo_url
+        for f in LINK_FIELDS:
+            v = getattr(upd, f)
+            if v is not None:
+                fields[f] = v
         if not fields and upd.members is None:
             raise HTTPException(status_code=400, detail="nothing to update")
         if fields:
