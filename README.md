@@ -16,9 +16,13 @@ curl -fsSL https://<server>/install.sh | sh
 Then open `vibe` and type `/summer-vibe`. The skill asks:
 
 1. What do you build? Name + description, 2 phrases.
-2. List all members of your team.
-3. Per member: socials (twitter/linkedin)?
-4. Your team's 6-digit sign-up code.
+2. Your team + socials, as a table to fill (name / twitter / linkedin / github).
+3. Project links (all optional): repo, live demo, demo video, pitch deck.
+4. A cover image (from the repo's static assets, or a pasted url) and some emojis.
+5. Your team's 6-digit sign-up code.
+
+Re-run `/summer-vibe` with the same code anytime to update the entry (add the
+deck once it's live, swap the demo link, etc.).
 
 The install script and skill are served by the API itself with the server URL
 baked in — zero configuration on the participant's machine, no fork of vibe.
@@ -50,8 +54,8 @@ Data lands in `api/submissions.db` (SQLite). Hosted on an [ascii.dev Box](https:
 
 | Method | Path | What |
 |---|---|---|
-| POST | `/submissions` | `{code, project_name, description, members: [{name, twitter?, linkedin?}]}` → saved (401 bad code, 409 already submitted) |
-| PUT | `/submissions` | same shape, `code` identifies the entry; `members` replaces the whole list |
+| POST | `/submissions` | `{code, project_name, description, members: [{name, twitter?, linkedin?, github?}], emojis?, image_url?, github_url?, demo_url?, video_url?, deck_url?}` → saved (401 bad code, 409 already submitted) |
+| PUT | `/submissions` | same shape, `code` identifies the entry; send only changed fields; `members`, if included, replaces the whole list |
 | POST | `/lookup` | `{code}` → `{valid, submission\|null}` — for the leaderboard edit flow |
 | GET | `/submissions` | all entries with nested members, newest first (codes never exposed) |
 | GET | `/submissions/{id}` | one entry |
