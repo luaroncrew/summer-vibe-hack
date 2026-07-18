@@ -35,6 +35,16 @@ export function twitterLabel(raw) {
   return "@" + v.replace(/^@/, "");
 }
 
+export function githubUrl(raw) {
+  if (!raw) return null;
+  const v = raw.trim();
+  if (/^https?:\/\//i.test(v)) return safeUrl(v);
+  if (v.includes("github.com")) return safeUrl(`https://${v.replace(/^\/+/, "")}`);
+  // a bare handle -> profile
+  const handle = v.replace(/^@/, "").replace(/^\/+/, "");
+  return safeUrl(`https://github.com/${encodeURIComponent(handle)}`);
+}
+
 export function linkedinUrl(raw) {
   if (!raw) return null;
   const v = raw.trim();

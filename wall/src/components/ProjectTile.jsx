@@ -1,13 +1,16 @@
 import { Link } from "react-router-dom";
-import { coverFor } from "../lib/covers.js";
+import { coverFor, hasOwnCover } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
 
 // One project, one rectangle. The cover image fills the tile with the heading
-// over it. Off-cursor the image is monochrome in mistral colors; on hover it
-// takes its real colors. Tiles share a single border (no gaps).
+// over it. Placeholder covers are monochrome (mistral) off-cursor and take
+// their real colors on hover; a builder's own image always shows in color.
+// Tiles share a single border (no gaps).
 export default function ProjectTile({ project, index }) {
   const cover = coverFor(project);
+  const ownCover = hasOwnCover(project);
   const line = blurb(project.description);
+  const emojis = (project.emojis ?? "").trim();
 
   return (
     <Link
@@ -24,21 +27,25 @@ export default function ProjectTile({ project, index }) {
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
       />
 
-      {/* mistral monochrome veil — fades out on hover to reveal real colors */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0"
-        style={{
-          background:
-            "linear-gradient(150deg, #ffc61a, #ff7a00 52%, #d81e05)",
-          mixBlendMode: "color",
-        }}
-      />
-      {/* a touch of desaturation under the veil so the off state is fully mono */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-ink/25 opacity-100 transition-opacity duration-300 group-hover:opacity-0"
-      />
+      {/* mistral monochrome veil — placeholder covers only; fades on hover */}
+      {!ownCover && (
+        <>
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0"
+            style={{
+              background:
+                "linear-gradient(150deg, #ffc61a, #ff7a00 52%, #d81e05)",
+              mixBlendMode: "color",
+            }}
+          />
+          {/* a touch of desaturation under the veil so the off state is fully mono */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-ink/25 opacity-100 transition-opacity duration-300 group-hover:opacity-0"
+          />
+        </>
+      )}
 
       {/* legibility scrim for the heading */}
       <div
@@ -52,6 +59,9 @@ export default function ProjectTile({ project, index }) {
 
       {/* heading */}
       <div className="absolute inset-x-0 bottom-0 p-4">
+        {emojis && (
+          <div className="mb-1 text-[15px] leading-none drop-shadow-sm">{emojis}</div>
+        )}
         <h2 className="truncate text-[15px] font-semibold text-cream drop-shadow-sm sm:text-[16px]">
           {project.name}
         </h2>

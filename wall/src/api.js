@@ -13,7 +13,12 @@ function normalize(s) {
     id: s.id,
     name: s.project_name ?? s.name ?? "untitled",
     description: s.description ?? s.project ?? "",
+    emojis: s.emojis ?? "",
+    imageUrl: s.image_url ?? null,
     demoUrl: s.demo_url ?? null,
+    videoUrl: s.video_url ?? null,
+    githubUrl: s.github_url ?? null,
+    deckUrl: s.deck_url ?? null,
     members: Array.isArray(s.members) ? s.members : [],
     createdAt: s.created_at ?? null,
   };

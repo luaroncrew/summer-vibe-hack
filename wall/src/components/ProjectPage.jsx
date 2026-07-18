@@ -4,7 +4,13 @@ import AsciiBackdrop from "./ascii/AsciiBackdrop.jsx";
 import { fetchProject } from "../api.js";
 import { coverFor } from "../lib/covers.js";
 import { blurb } from "../lib/motifs.js";
-import { twitterUrl, twitterLabel, linkedinUrl, safeUrl } from "../lib/links.js";
+import {
+  twitterUrl,
+  twitterLabel,
+  linkedinUrl,
+  githubUrl,
+  safeUrl,
+} from "../lib/links.js";
 
 // The project page: a template filled from the submission, with a slot left
 // for the ai-generated write-up that gets produced later.
@@ -65,7 +71,14 @@ function Loaded({ project }) {
   const tagline = blurb(project.description, 120);
   const joined = fmtDate(project.createdAt);
   const members = project.members ?? [];
-  const demo = safeUrl(project.demoUrl); // submitter-controlled: allow http/https only
+  const emojis = (project.emojis ?? "").trim();
+  // every url here is submitter-controlled -> safeUrl allows http/https only
+  const links = [
+    { href: safeUrl(project.demoUrl), label: "open demo" },
+    { href: githubUrl(project.githubUrl), label: "github" },
+    { href: safeUrl(project.videoUrl), label: "demo video" },
+    { href: safeUrl(project.deckUrl), label: "pitch deck" },
+  ].filter((l) => l.href);
 
   return (
     <article className="flex flex-col gap-5">
@@ -87,17 +100,20 @@ function Loaded({ project }) {
         />
         <div className="relative p-6 pt-24 sm:p-8 sm:pt-32">
           <p className="text-[11px] text-sand">summer vibe hack · build</p>
-          <h1 className="mt-1 text-[26px] font-bold leading-tight tracking-tight text-cream sm:text-[34px]">
+          <h1 className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[26px] font-bold leading-tight tracking-tight text-cream sm:text-[34px]">
             {project.name}
+            {emojis && <span className="text-[22px] sm:text-[28px]">{emojis}</span>}
           </h1>
           {tagline && (
             <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-sand">
               {tagline}
             </p>
           )}
-          {demo && (
-            <div className="mt-5">
-              <LinkChip href={demo} label="open demo" />
+          {links.length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {links.map((l) => (
+                <LinkChip key={l.label} href={l.href} label={l.label} />
+              ))}
             </div>
           )}
         </div>
@@ -134,6 +150,9 @@ function Loaded({ project }) {
                       label="linkedin"
                       small
                     />
+                  )}
+                  {m.github && (
+                    <LinkChip href={githubUrl(m.github)} label="github" small />
                   )}
                 </span>
               </li>

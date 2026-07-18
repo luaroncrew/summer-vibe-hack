@@ -1,7 +1,9 @@
-// Test cover images for each project until real generated images land. Picked
-// deterministically from the project id so a build always shows the same cover.
-// Colorful on purpose: the tile shows them monochrome (mistral) and reveals the
-// real colors on hover.
+import { safeUrl } from "./links.js";
+
+// Cover image for a project. If the builder linked their own image (image_url)
+// we use it; otherwise a colorful placeholder is picked deterministically from
+// the project id so a build always shows the same cover. The tile shows covers
+// monochrome (mistral) and reveals the real colors on hover.
 const COVERS = [
   "sunset",
   "palm",
@@ -20,6 +22,14 @@ function hash(str) {
 }
 
 export function coverFor(project) {
+  const own = safeUrl(project?.imageUrl);
+  if (own) return own;
   const seed = project?.id ?? hash(project?.name ?? "wall");
   return `${import.meta.env.BASE_URL}covers/${COVERS[seed % COVERS.length]}.svg`;
+}
+
+// Is this project showing a real (submitter-supplied) cover, vs a placeholder?
+// The tile keeps the mistral monochrome veil only over placeholders.
+export function hasOwnCover(project) {
+  return !!safeUrl(project?.imageUrl);
 }
