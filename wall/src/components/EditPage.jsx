@@ -300,9 +300,6 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
           />
           {photoErr && <span className="mt-1 block text-[11px] text-flame-coral">{photoErr}</span>}
         </Field>
-        <Field label="cover image url" hint="a public image used as the tile cover">
-          <input value={values.imageUrl} onChange={set("imageUrl")} className={INPUT} placeholder="https://…/cover.png" />
-        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="live demo"><input value={values.demoUrl} onChange={set("demoUrl")} className={INPUT} placeholder="https://…" /></Field>
           <Field label="github repo"><input value={values.githubUrl} onChange={set("githubUrl")} className={INPUT} placeholder="github.com/…" /></Field>
