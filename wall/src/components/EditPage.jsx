@@ -180,9 +180,7 @@ function CodeGate({ onValid, error }) {
         sign up
       </h1>
       <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-        your team name and the 6-digit code the organizers handed out — that's
-        it, everything else you can fill in after. already signed up? just enter
-        the code. don't have a code? contact{" "}
+        don't have a code? contact{" "}
         <a
           href="mailto:cyrill.makarov@gmail.com?subject=project%20submission"
           className="text-flame-orange no-underline hover:underline"
