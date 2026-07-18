@@ -6,6 +6,7 @@ import {
   resolveLink,
   saveSubmission,
   createShareLink,
+  uploadPhotos,
 } from "../api.js";
 
 // Edit a project on the wall. Two ways in: a team enters their 6-digit code,
@@ -13,6 +14,7 @@ import {
 // way you can change everything, then mint a link to hand to a teammate.
 
 const EMPTY = {
+  photos: [],
   name: "",
   description: "",
   emojis: "",
@@ -26,6 +28,7 @@ const EMPTY = {
 
 function fromSubmission(s) {
   return {
+    photos: s.photos ?? [],
     name: s.name ?? "",
     description: s.description ?? "",
     emojis: s.emojis ?? "",
@@ -196,6 +199,19 @@ function CodeGate({ onValid, error }) {
 function EditForm({ values, setValues, auth, existing, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [photoErr, setPhotoErr] = useState(null);
+
+  const pickPhotos = (e) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 3) {
+      setPhotoErr("3 photos max — only the first 3 will be uploaded");
+      setPhotoFiles(files.slice(0, 3));
+    } else {
+      setPhotoErr(null);
+      setPhotoFiles(files);
+    }
+  };
 
   const set = (k) => (e) => setValues((v) => ({ ...v, [k]: e.target.value }));
 
@@ -229,6 +245,7 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
     setSaving(true);
     try {
       const result = await saveSubmission({ auth, values, existing });
+      if (photoFiles.length) await uploadPhotos(auth, photoFiles);
       onSaved(existing ? result.id : result.id);
     } catch (e2) {
       setErr(e2.message);
@@ -263,6 +280,26 @@ function EditForm({ values, setValues, auth, existing, onSaved }) {
       </Section>
 
       <Section title="cover + links">
+        <Field
+          label="photos (up to 3)"
+          hint="uploaded from your device — the first one becomes the tile cover; a new upload replaces the current set"
+        >
+          {values.photos?.length > 0 && photoFiles.length === 0 && (
+            <div className="mb-2 flex gap-2">
+              {values.photos.map((src, i) => (
+                <img key={i} src={src} alt={`photo ${i + 1}`} className="h-14 w-20 border border-line object-cover" />
+              ))}
+            </div>
+          )}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            multiple
+            onChange={pickPhotos}
+            className="block w-full text-[12px] text-ink-soft file:mr-3 file:border file:border-line file:bg-transparent file:px-3 file:py-1.5 file:text-[11px] file:text-cream file:transition-colors hover:file:border-flame-orange"
+          />
+          {photoErr && <span className="mt-1 block text-[11px] text-flame-coral">{photoErr}</span>}
+        </Field>
         <Field label="cover image url" hint="a public image used as the tile cover">
           <input value={values.imageUrl} onChange={set("imageUrl")} className={INPUT} placeholder="https://…/cover.png" />
         </Field>

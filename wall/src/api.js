@@ -83,6 +83,25 @@ async function postJSON(path, body, method = "POST") {
   return data;
 }
 
+// Upload up to 3 photos (replaces the project's current set). Auth mirrors
+// editing: {code} or a signed {token}.
+export async function uploadPhotos(auth, files) {
+  const fd = new FormData();
+  if (auth?.code) fd.append("code", auth.code);
+  if (auth?.token) fd.append("token", auth.token);
+  files.forEach((f) => fd.append("photos", f));
+  const res = await fetch(url("/submissions/photos"), { method: "POST", body: fd });
+  if (!res.ok) {
+    let detail = `photo upload failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data.detail) detail = String(data.detail);
+    } catch { /* keep default */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 // Validate a code and, if it already has a project, hand back the submission
 // plus which project this team has voted for (null if it hasn't voted yet).
 export async function lookupCode(code) {

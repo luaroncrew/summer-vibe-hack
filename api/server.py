@@ -408,19 +408,17 @@ def lookup(body: Lookup, request: Request):
 
 @app.post("/submissions/photos")
 async def upload_photos(
-    code: str = Form(...), photos: list[UploadFile] = File(...)
+    code: str | None = Form(None),
+    token: str | None = Form(None),
+    photos: list[UploadFile] = File(...),
 ):
     """Upload up to MAX_PHOTOS photos for the team's project (replaces the
-    previous set). Files land in uploads/ and are linked in submission_photos."""
+    previous set). Auth like editing: team code or signed share-link token.
+    Files land in uploads/ and are linked in submission_photos."""
     if not 1 <= len(photos) <= MAX_PHOTOS:
         raise HTTPException(status_code=400, detail=f"send 1 to {MAX_PHOTOS} photos")
     with db() as conn:
-        require_code(conn, code)
-        row = conn.execute(
-            "SELECT id FROM submissions WHERE code = ?", (code,)
-        ).fetchone()
-        if row is None:
-            raise HTTPException(status_code=404, detail="no submission for this code yet")
+        row = authorize_edit(conn, code, token)
         sub_id = row["id"]
 
         saved = []
