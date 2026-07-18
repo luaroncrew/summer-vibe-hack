@@ -25,13 +25,22 @@ export default function ProjectTile({ project, index }) {
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
       />
 
-      {/* legibility scrim for the text */}
+      {/* legibility: a stronger scrim plus a frosted blur band that fades out
+          upward, so the text reads on any photo without a hard edge */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-2/3"
+        className="absolute inset-x-0 bottom-0 h-3/4"
         style={{
           background:
-            "linear-gradient(to top, rgba(10,7,4,0.92), rgba(10,7,4,0.35) 45%, transparent)",
+            "linear-gradient(to top, rgba(10,7,4,0.96), rgba(10,7,4,0.55) 45%, transparent)",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 bottom-0 h-2/5 backdrop-blur-[6px]"
+        style={{
+          WebkitMaskImage: "linear-gradient(to top, black 55%, transparent)",
+          maskImage: "linear-gradient(to top, black 55%, transparent)",
         }}
       />
 
