@@ -83,7 +83,7 @@ export default function ProjectPage() {
               disabled={!project}
               className="border border-flame-orange bg-flame-orange px-3 py-1 text-[11px] font-semibold text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
             >
-              vote
+              vote for this team
             </button>
             <span className="flex items-center gap-1">
               <NavArrow id={prevId} dir="prev" />
@@ -126,12 +126,13 @@ export default function ProjectPage() {
 }
 
 /* --- voting --------------------------------------------------------------- */
-// Vote straight from the showcase: type the team code, get one final
-// confirmation (a vote can't be changed), then it's cast. One code = one vote.
+// Vote straight from the showcase: the rules come first, then the team code,
+// then a confirmation. One code = one vote; voting again moves the vote.
 function VoteModal({ project, onClose }) {
   const [step, setStep] = useState("code"); // code | confirm | done
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hadVoted, setHadVoted] = useState(false);
   const [msg, setMsg] = useState(null); // { warn?: true, text }
 
   useEffect(() => {
@@ -150,9 +151,10 @@ function VoteModal({ project, onClose }) {
         setMsg({ text: "this code has no project on the wall — you can only vote if your team submitted" });
       } else if (submission.id === project.id) {
         setMsg({ text: "you can't vote for your own team" });
-      } else if (votedFor != null) {
-        setMsg({ warn: true, text: "your team has already used its vote — one vote per team, and it can't be changed" });
+      } else if (votedFor === project.id) {
+        setMsg({ warn: true, text: "your team's vote is already on this project" });
       } else {
+        setHadVoted(votedFor != null);
         setStep("confirm");
       }
     } catch (e2) {
@@ -169,7 +171,7 @@ function VoteModal({ project, onClose }) {
       await castVote(code, project.id);
       setStep("done");
     } catch (e2) {
-      setMsg({ warn: /already/.test(e2.message), text: e2.message });
+      setMsg({ text: e2.message });
     } finally {
       setBusy(false);
     }
@@ -189,20 +191,37 @@ function VoteModal({ project, onClose }) {
             <p className="text-[15px] font-semibold text-cream">
               vote for {project.name}
             </p>
-            <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
-              enter your team code. every team has one vote — and it can't be
-              changed once cast.
-            </p>
+
+            {/* the rules, up front and unmissable */}
+            <div className="mt-3 border border-yellow-400/50 bg-yellow-400/10 p-3">
+              <p className="text-[11px] font-semibold tracking-wide text-yellow-300">
+                ⚠ how voting works
+              </p>
+              <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11.5px] leading-relaxed text-yellow-200/90">
+                <li>every team has one vote</li>
+                <li>you can move it later by voting for another team</li>
+                <li>only teams on the wall can vote — no submission, no vote</li>
+                <li>you can't vote for your own team</li>
+              </ul>
+            </div>
+
+            <label className="mt-4 block text-[11px] text-sand">your team code</label>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric"
               autoFocus
               placeholder="123456"
-              className="mt-4 w-full border border-line bg-ink-3/60 px-3 py-2 text-[13px] tracking-[0.4em] text-cream placeholder:text-ink-soft/60 outline-none transition-colors focus:border-flame-orange"
+              className="mt-1.5 w-full border border-line bg-ink-3/60 px-3 py-2 text-[13px] tracking-[0.4em] text-cream placeholder:text-ink-soft/60 outline-none transition-colors focus:border-flame-orange"
             />
             {msg && (
-              <p className={`mt-3 text-[12px] ${msg.warn ? "text-sand" : "text-flame-coral"}`}>
+              <p
+                className={`mt-3 border p-2.5 text-[12px] leading-relaxed ${
+                  msg.warn
+                    ? "border-yellow-400/50 bg-yellow-400/10 text-yellow-200"
+                    : "border-flame-coral/50 bg-flame-coral/10 text-flame-coral"
+                }`}
+              >
                 {msg.text}
               </p>
             )}
@@ -230,12 +249,14 @@ function VoteModal({ project, onClose }) {
             <p className="text-[15px] font-semibold text-cream">
               confirm your vote
             </p>
-            <p className="mt-2 text-[12px] leading-relaxed text-sand">
-              ⚠ you're about to vote for <b className="text-cream">{project.name}</b>.
-              this is your team's only vote and it can't be changed afterwards.
-            </p>
+            <div className="mt-3 border border-yellow-400/50 bg-yellow-400/10 p-3 text-[12px] leading-relaxed text-yellow-200">
+              ⚠ you're voting for <b className="text-cream">{project.name}</b>.
+              {hadVoted
+                ? " this moves your team's earlier vote to this project."
+                : " you can move your vote later by voting for another team."}
+            </div>
             {msg && (
-              <p className={`mt-3 text-[12px] ${msg.warn ? "text-sand" : "text-flame-coral"}`}>
+              <p className="mt-3 border border-flame-coral/50 bg-flame-coral/10 p-2.5 text-[12px] text-flame-coral">
                 {msg.text}
               </p>
             )}
@@ -263,7 +284,8 @@ function VoteModal({ project, onClose }) {
           <div>
             <p className="text-[15px] font-semibold text-cream">vote counted 🎉</p>
             <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
-              your team voted for {project.name}. results get announced later.
+              your team voted for {project.name}. you can move the vote by voting
+              for another team — results get announced later.
             </p>
             <button
               type="button"

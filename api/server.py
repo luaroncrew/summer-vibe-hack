@@ -517,7 +517,7 @@ def set_cover(body: PhotoBody):
 
 @app.post("/vote")
 def vote(body: Vote):
-    """Cast the team's single vote. One code = one vote, final (no re-vote).
+    """Cast the team's single vote. One code = one vote; voting again moves it.
     Only teams with a project on the wall can vote, and never for themselves.
     Counts stay private until the results page."""
     with db() as conn:
@@ -537,12 +537,10 @@ def vote(body: Vote):
             raise HTTPException(status_code=404, detail="no such project")
         if target["code"] == body.code:
             raise HTTPException(status_code=400, detail="you can't vote for your own team")
-        if conn.execute(
-            "SELECT 1 FROM votes WHERE voter_code = ?", (body.code,)
-        ).fetchone():
-            raise HTTPException(status_code=409, detail="your team has already used its vote")
         conn.execute(
-            "INSERT INTO votes (voter_code, submission_id, created_at) VALUES (?, ?, ?)",
+            "INSERT INTO votes (voter_code, submission_id, created_at) VALUES (?, ?, ?)"
+            " ON CONFLICT(voter_code) DO UPDATE SET"
+            " submission_id = excluded.submission_id, created_at = excluded.created_at",
             (body.code, body.submission_id, now()),
         )
         return {"ok": True, "submission_id": body.submission_id}
